@@ -24,48 +24,72 @@ Meta: "${goal}"
 Instrucciones:
 1. Si la meta no es directamente financiera, encuádrala dentro de la prosperidad bíblica integral.
 2. Si el usuario no tiene empleo, la primera submeta debe ser conseguir estabilidad laboral.
-3. Genera exactamente 5 submetas concretas y progresivas para llegar a esta meta.
-4. Cada submeta debe ser un paso real y medible, no una actitud ni un sentimiento.
-5. Las submetas deben conectarse con los principios bíblicos de la app: Espiritual, Financiero, Carácter, Relacional.
+3. Genera exactamente 5 pasos concretos y progresivos para llegar a esta meta.
+4. Cada paso debe ser un avance real y medible, no una actitud ni un sentimiento.
+5. Los pasos deben conectarse con los principios bíblicos de la app.
 
 Responde SOLO con un array JSON de 5 strings. Sin explicaciones, sin markdown, solo el array JSON puro.`;
 
     } else if (type === "day_conclusion") {
-      const { checkinData, reflections, pct } = req.body;
-      prompt = `Eres un coach de prosperidad bíblica. Analiza el check-in del día de este usuario.
+      const { reflections, pct } = req.body;
+      prompt = `Eres un coach de prosperidad bíblica. Analiza el día de este usuario.
 
 Porcentaje de principios cumplidos hoy: ${pct}%
 Reflexiones escritas hoy: "${reflections || "ninguna"}"
 
 Genera una conclusión personalizada del día que:
-1. Sea honesta — no niegues lo que sucedió si fue un día difícil
+1. Sea honesta — no niegues si fue un día difícil
 2. Aplique gracia bíblica — nunca condenes, siempre restaura
-3. Impulse hacia adelante — termine con esperanza concreta
-4. Incluya un verso bíblico apropiado al nivel de cumplimiento
-5. Sea corta — máximo 2 oraciones de mensaje + 1 verso
+3. Impulse hacia adelante con esperanza concreta
+4. Incluya un verso bíblico apropiado
+5. Sea corta — máximo 2 oraciones de mensaje
 
-Responde SOLO con un objeto JSON con estos campos exactos:
-{"message": "...", "verse": "Referencia bíblica", "verseText": "...", "level": "excellent|good|building|restart"}
+Responde SOLO con este objeto JSON exacto:
+{"message": "...", "verse": "Referencia bíblica", "verseText": "texto del verso", "level": "excellent|good|building|restart"}
 
-Sin markdown, sin explicaciones adicionales. Solo el JSON puro.`;
+Sin markdown, sin texto adicional. Solo el JSON puro.`;
+
+    } else if (type === "week_analysis") {
+      const { weekData, areaStats, streak, avgPct } = req.body;
+      const daysWithData = weekData.filter(d => d.pct > 0).length;
+      const bestArea = areaStats?.sort((a, b) => b.pct - a.pct)[0];
+      const weakArea = areaStats?.sort((a, b) => a.pct - b.pct)[0];
+      prompt = `Eres un coach de prosperidad bíblica. Analiza la semana de este usuario y da una interpretación clara de sus números.
+
+Datos de la semana:
+- Días con actividad: ${daysWithData} de 7
+- Promedio general: ${avgPct}%
+- Racha actual: ${streak} días
+- Área más fuerte: ${bestArea?.area} (${bestArea?.pct}%)
+- Área que necesita atención: ${weakArea?.area} (${weakArea?.pct}%)
+- Detalle diario: ${weekData.map(d => `${d.date}: ${d.pct}%`).join(", ")}
+
+Escribe UN párrafo corto (3-4 oraciones máximo) que:
+1. Explique en lenguaje humano qué significan estos números
+2. Identifique el patrón principal de la semana
+3. Señale un área de oportunidad específica
+4. Termine con una frase de aliento basada en un principio bíblico
+
+Responde SOLO con el texto del párrafo. Sin JSON, sin markdown, sin títulos. Solo el párrafo.`;
 
     } else if (type === "goal_progress") {
       const { goalTitle, subgoals, recentReflections } = req.body;
-      prompt = `Eres un coach de prosperidad bíblica. Analiza si el usuario está avanzando en su meta basándote en sus reflexiones recientes.
+      prompt = `Eres un coach de prosperidad bíblica. Analiza si el usuario está avanzando en su meta.
 
 Meta: "${goalTitle}"
-Submetas:
+Pasos:
 ${subgoals.map((s, i) => `${i}: ${s}`).join("\n")}
 
-Reflexiones recientes del check-in diario:
+Reflexiones recientes:
 ${recentReflections.join("\n")}
 
-Para cada submeta, determina si está:
+Para cada paso, determina:
 - "completed": hay evidencia clara de que se logró
 - "in_progress": hay señales de avance aunque no completo
 - "pending": no hay evidencia de avance aún
 
-Responde SOLO con un array JSON donde cada elemento tiene: {"index": número, "subgoal": "texto", "status": "completed|in_progress|pending", "evidence": "frase corta de evidencia o vacío"}
+Responde SOLO con un array JSON donde cada elemento tiene:
+{"index": número, "subgoal": "texto", "status": "completed|in_progress|pending", "evidence": "frase corta de evidencia o vacío"}
 
 Sin markdown, sin explicaciones. Solo el array JSON puro.`;
 
@@ -104,16 +128,23 @@ Responde SOLO con un array JSON de 3 strings. Sin markdown, solo el array JSON p
     });
 
     if (!response.ok) {
-      console.error("Anthropic error:", await response.json());
+      console.error("Anthropic error:", await response.text());
       return res.status(500).json({ error: "AI service error" });
     }
 
     const data  = await response.json();
-    const text  = data.content?.[0]?.text || "[]";
+    const text  = data.content?.[0]?.text || "";
     const clean = text.replace(/```json|```/g, "").trim();
 
+    // week_analysis returns plain text, not JSON
+    if (type === "week_analysis") {
+      return res.status(200).json({ analysis: clean });
+    }
+
     let result;
-    try { result = JSON.parse(clean); } catch {
+    try {
+      result = JSON.parse(clean);
+    } catch {
       if (type === "day_conclusion") result = { message: "Hoy es un paso más en tu camino. Mañana sigue adelante.", verse: "Lamentaciones 3:22-23", verseText: "Las misericordias del Señor nunca terminan, nuevas son cada mañana.", level: "building" };
       else if (type === "grace_plan") result = ["Día 1: Un solo check-in completo, sin presión", "Día 2: Enfócate en un principio que domines", "Día 3: Vuelve a tu rutina completa con gracia"];
       else if (type === "goal_progress") result = [];
