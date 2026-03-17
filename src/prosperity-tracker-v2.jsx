@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
 
-// ── CONSTANTS ─────────────────────────────────────────────────────────────────
-
 const STATIC_VERSES = [
   { ref: "Josué 1:8", text: "Nunca se apartará de tu boca este libro de la ley; antes bien, de día y de noche meditarás en él... entonces harás prosperar tu camino." },
   { ref: "Proverbios 3:9-10", text: "Honra al Señor con tus bienes y con las primicias de todos tus frutos; y serán llenos tus graneros con abundancia." },
@@ -100,9 +98,15 @@ const getLast7 = () => Array.from({ length: 7 }, (_, i) => { const d = new Date(
 const getDayVerse = () => { const diff = Math.floor((new Date() - new Date("2024-01-01")) / 86400000); return STATIC_VERSES[diff % STATIC_VERSES.length]; };
 const scoreToLevel = (score) => { if (score >= 9) return 3; if (score >= 5) return 2; return 1; };
 
-// ── BIBLE API FETCH ───────────────────────────────────────────────────────────
-// Uses /api/bible Vercel function which proxies to bible.helloao.org
-// Falls back to static verse if API unavailable
+// ── localStorage helpers ──────────────────────────────────────────────────────
+const lsGet = (key, fallback) => {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
+};
+const lsSet = (key, value) => {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+};
+
+// ── Bible API ─────────────────────────────────────────────────────────────────
 const fetchDailyVerse = async (bibleVersion) => {
   const refs = ["Joshua/1/8", "Malachi/3/10", "Proverbs/3/9", "Proverbs/10/4", "Luke/16/10"];
   const diff = Math.floor((new Date() - new Date("2024-01-01")) / 86400000);
@@ -116,7 +120,7 @@ const fetchDailyVerse = async (bibleVersion) => {
   }
 };
 
-// ── AI CHECKLIST VIA BACKEND ──────────────────────────────────────────────────
+// ── AI Checklist ──────────────────────────────────────────────────────────────
 const generateChecklist = async (goal, area, userLevel) => {
   const principlesList = PRINCIPLES.find(p => p.area === area)?.items.map(i => `${i.name} (${i.promise})`).join(", ");
   const level = LEVELS.find(l => l.id === userLevel);
@@ -125,8 +129,7 @@ const generateChecklist = async (goal, area, userLevel) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        goal,
-        area,
+        goal, area,
         levelId: level?.id,
         levelName: level?.name,
         levelObjective: level?.objective,
@@ -137,7 +140,6 @@ const generateChecklist = async (goal, area, userLevel) => {
     const data = await res.json();
     return data.questions;
   } catch {
-    // Fallback questions if API unavailable
     return [
       "¿Dediqué tiempo concreto a esta meta hoy?",
       "¿Tomé al menos una acción medible hacia esta meta?",
@@ -154,12 +156,9 @@ const generateChecklist = async (goal, area, userLevel) => {
 // ── COMPONENT ─────────────────────────────────────────────────────────────────
 
 export default function App() {
-  // Onboarding
   const [onboarded, setOnboarded] = useState(false);
   const [obStep, setObStep] = useState(0);
   const [obAnswers, setObAnswers] = useState({});
-
-  // Core state
   const [tab, setTab] = useState("checkin");
   const [checkins, setCheckins] = useState({});
   const [goals, setGoals] = useState([]);
@@ -170,31 +169,28 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [verseOpen, setVerseOpen] = useState(true);
   const [verse, setVerse] = useState(getDayVerse());
-
-  // Goal creation + AI
   const [showForm, setShowForm] = useState(false);
   const [newGoal, setNewGoal] = useState({ title: "", area: "Espiritual" });
   const [aiQuestions, setAiQuestions] = useState([]);
   const [selectedQ, setSelectedQ] = useState([]);
   const [aiLoading, setAiLoading] = useState(false);
-  const [goalStep, setGoalStep] = useState("form"); // "form" | "select"
+  const [goalStep, setGoalStep] = useState("form");
 
-  // Load persisted data
+  // Load from localStorage
   useEffect(() => {
-    (async () => {
-      try { const c = await window.storage.get("checkins"); if (c) setCheckins(JSON.parse(c.value)); } catch {}
-      try { const g = await window.storage.get("goals"); if (g) setGoals(JSON.parse(g.value)); } catch {}
-      try { const o = await window.storage.get("onboarded"); if (o) setOnboarded(JSON.parse(o.value)); } catch {}
-      try { const l = await window.storage.get("userLevel"); if (l) setUserLevel(JSON.parse(l.value)); } catch {}
-      try { const v = await window.storage.get("bibleVersion"); if (v) setBibleVersion(v.value); } catch {}
-      setLoaded(true);
-    })();
+    setCheckins(lsGet("checkins", {}));
+    setGoals(lsGet("goals", []));
+    setOnboarded(lsGet("onboarded", false));
+    setUserLevel(lsGet("userLevel", 1));
+    const v = localStorage.getItem("bibleVersion");
+    if (v) setBibleVersion(v);
+    setLoaded(true);
   }, []);
 
-  // Streak + persist checkins
+  // Persist checkins + streak
   useEffect(() => {
     if (!loaded) return;
-    window.storage.set("checkins", JSON.stringify(checkins)).catch(() => {});
+    lsSet("checkins", checkins);
     let s = 0, d = new Date();
     while (true) {
       const k = d.toISOString().split("T")[0];
@@ -205,9 +201,9 @@ export default function App() {
     setStreak(s);
   }, [checkins, loaded]);
 
-  useEffect(() => { if (loaded) window.storage.set("goals", JSON.stringify(goals)).catch(() => {}); }, [goals, loaded]);
+  useEffect(() => { if (loaded) lsSet("goals", goals); }, [goals, loaded]);
 
-  // Fetch dynamic Bible verse on load
+  // Fetch Bible verse
   useEffect(() => {
     if (loaded && bibleVersion) {
       fetchDailyVerse(bibleVersion).then(v => { if (v) setVerse(v); });
@@ -244,18 +240,18 @@ export default function App() {
 
   const inp = { width: "100%", background: "#0D0C0A", border: "1px solid #2A2820", borderRadius: 6, padding: "10px 12px", color: "#E8E0D0", fontSize: 13, fontFamily: "Georgia, serif", outline: "none", boxSizing: "border-box" };
 
-  // ── ONBOARDING ─────────────────────────────────────────────────────────────
-
+  // Onboarding finish
   const finishOnboarding = (answers) => {
     const score = ONBOARDING_Q.filter(q => !q.isVersion).reduce((sum, q) => sum + (q.scores[answers[q.id]] || 0), 0);
     const level = scoreToLevel(score);
     const ver = VERSION_MAP[answers["version"]] || "es-RVR1960";
     setUserLevel(level); setBibleVersion(ver); setOnboarded(true);
-    window.storage.set("onboarded", JSON.stringify(true)).catch(() => {});
-    window.storage.set("userLevel", JSON.stringify(level)).catch(() => {});
-    window.storage.set("bibleVersion", ver).catch(() => {});
+    lsSet("onboarded", true);
+    lsSet("userLevel", level);
+    localStorage.setItem("bibleVersion", ver);
   };
 
+  // ── ONBOARDING ─────────────────────────────────────────────────────────────
   if (!onboarded && loaded) {
     const q = ONBOARDING_Q[obStep];
     const isLast = obStep === ONBOARDING_Q.length - 1;
@@ -297,7 +293,6 @@ export default function App() {
   }
 
   // ── GOAL AI FLOW ──────────────────────────────────────────────────────────
-
   const handleGenerateAI = async () => {
     if (!newGoal.title.trim()) return;
     setAiLoading(true);
@@ -316,7 +311,6 @@ export default function App() {
   };
 
   // ── MAIN RENDER ──────────────────────────────────────────────────────────
-
   return (
     <div style={{ minHeight: "100vh", background: "#0D0C0A", color: "#E8E0D0", fontFamily: "Georgia, 'Times New Roman', serif", paddingBottom: 80 }}>
       <div style={{ position: "fixed", inset: 0, backgroundImage: "radial-gradient(ellipse at 15% 15%, rgba(201,168,76,0.05) 0%, transparent 55%), radial-gradient(ellipse at 85% 85%, rgba(126,184,164,0.04) 0%, transparent 55%)", pointerEvents: "none", zIndex: 0 }} />
@@ -344,14 +338,14 @@ export default function App() {
           </div>
         </div>
 
-        {/* CERTIFICATION NOTIFICATION */}
+        {/* CERT NOTIFICATION */}
         {certReady && (
           <div style={{ background: "linear-gradient(135deg,#1A1408,#110D06)", border: "1px solid #C9A84C50", borderRadius: 10, padding: "14px 18px", marginBottom: 18, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
             <div>
               <div style={{ fontSize: 10, color: "#C9A84C", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 3 }}>✦ La IA ha detectado preparación</div>
               <div style={{ fontSize: 12, color: "#7A6A40" }}>Llevas {streak} días · {avgPct}% promedio. ¿Listo para Nivel {userLevel + 1}?</div>
             </div>
-            <button onClick={() => alert(`Proceso de certificación para Nivel ${userLevel + 1} — ${nextLevel?.name}.\nEsta función estará activa en la próxima actualización.`)} style={{ background: "#C9A84C20", border: "1px solid #C9A84C40", borderRadius: 6, padding: "7px 13px", color: "#C9A84C", fontSize: 11, cursor: "pointer", whiteSpace: "nowrap" }}>Certificarme →</button>
+            <button onClick={() => alert(`Certificación Nivel ${userLevel + 1} — ${nextLevel?.name}.\nDisponible en la próxima actualización.`)} style={{ background: "#C9A84C20", border: "1px solid #C9A84C40", borderRadius: 6, padding: "7px 13px", color: "#C9A84C", fontSize: 11, cursor: "pointer", whiteSpace: "nowrap" }}>Certificarme →</button>
           </div>
         )}
 
@@ -432,7 +426,6 @@ export default function App() {
                 })}
               </div>
             </div>
-
             <div style={{ background: "#111008", border: "1px solid #181610", borderRadius: 10, padding: 18, marginBottom: 18 }}>
               <div style={{ fontSize: 9, color: "#C9A84C", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 16 }}>◈ Por Área — 7 días</div>
               {areaStats.map(({ area, color, icon, pct: p }) => (
@@ -447,7 +440,6 @@ export default function App() {
                 </div>
               ))}
             </div>
-
             <div style={{ background: "#111008", border: "1px solid #181610", borderRadius: 10, padding: 18, marginBottom: 18 }}>
               <div style={{ fontSize: 9, color: "#C9A84C", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 16 }}>◆ Estadísticas Globales</div>
               {[["Días registrados", totalDays], ["Principios cumplidos en total", totalDone], ["Promedio diario", `${avgPct}%`], ["Racha actual", `${streak} días`], ["Metas activas", goals.filter(g => !g.done).length], ["Metas logradas", goals.filter(g => g.done).length]].map(([l, v]) => (
@@ -457,7 +449,6 @@ export default function App() {
                 </div>
               ))}
             </div>
-
             <div style={{ background: "linear-gradient(135deg,#191408,#110D06)", border: `1px solid ${currentLevel.color}25`, borderRadius: 10, padding: 20 }}>
               <div style={{ fontSize: 9, color: currentLevel.color, letterSpacing: "0.25em", textTransform: "uppercase", marginBottom: 10 }}>✦ Tu Nivel Actual</div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 6 }}>
@@ -482,7 +473,6 @@ export default function App() {
             <button onClick={() => { setShowForm(!showForm); setGoalStep("form"); setAiQuestions([]); setSelectedQ([]); }} style={{ width: "100%", padding: "12px", background: "none", border: "1px dashed #C9A84C35", borderRadius: 8, color: "#C9A84C", fontSize: 12, cursor: "pointer", marginBottom: 20, letterSpacing: "0.1em" }}>
               {showForm ? "✕ Cancelar" : "+ Nueva Meta"}
             </button>
-
             {showForm && (
               <div style={{ background: "#111008", border: "1px solid #1E1C18", borderRadius: 8, padding: 18, marginBottom: 22 }}>
                 {goalStep === "form" && (
@@ -497,12 +487,11 @@ export default function App() {
                     </button>
                   </>
                 )}
-
                 {goalStep === "select" && (
                   <>
                     <div style={{ fontSize: 9, color: "#C9A84C", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 3 }}>{newGoal.title}</div>
                     <div style={{ fontSize: 11, color: "#4A4030", marginBottom: 14 }}>
-                      {aiLoading ? "La IA está generando tus preguntas..." : `Selecciona las que quieres en tu check-in diario (${selectedQ.length} seleccionadas)`}
+                      {aiLoading ? "La IA está generando tus preguntas..." : `Selecciona las que quieres (${selectedQ.length} seleccionadas)`}
                     </div>
                     {aiLoading ? (
                       <div style={{ textAlign: "center", padding: "28px 0", color: "#5A4A28" }}>
@@ -534,14 +523,12 @@ export default function App() {
                 )}
               </div>
             )}
-
             {goals.length === 0 && !showForm && (
               <div style={{ textAlign: "center", padding: "36px 0", color: "#252010" }}>
                 <div style={{ fontSize: 26, marginBottom: 8 }}>◈</div>
                 <div style={{ fontSize: 12 }}>Aún no tienes metas definidas</div>
               </div>
             )}
-
             {goals.map(goal => {
               const c = areaColor(goal.area);
               const todayChecks = goal.questionChecks?.[todayKey()] || {};
