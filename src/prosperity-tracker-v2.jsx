@@ -124,8 +124,23 @@ const VERSE_BANKS = {
   ],
 };
 
+// type:"guided"    = app helps you DO it right now
+// type:"three_way" = ✓ did it / ○ will do today / ✗ not today
 const PRINCIPLES = [
-  { id:"oracion",        area:"Espiritual", areaKey:"spirit",    icon:"✦", name:"Oración",
+  { id:"oracion", area:"Espiritual", areaKey:"spirit", icon:"✦", name:"Oración",
+    type:"guided",
+    guide:{
+      intro:"Tómate dos minutos ahora mismo.",
+      focusBank:[
+        "Tu meta y lo que necesitas para avanzar en ella",
+        "Algo que te está generando ansiedad hoy",
+        "Una persona que necesita tu oración hoy",
+        "Gratitud genuina por algo concreto de tu vida",
+        "Sabiduría para una decisión que tienes pendiente",
+      ],
+      done:"Lo hice — oré ahora",
+      later:"Lo haré más tarde hoy",
+    },
     questions:[
       "¿Tuviste hoy un momento real con Dios — aunque sea corto?",
       "¿Le confiaste algo a Dios hoy o lo cargaste tú solo?",
@@ -133,7 +148,13 @@ const PRINCIPLES = [
       "¿Sentiste la presencia de Dios en algún momento de tu día?",
       "¿Le hablaste a Dios sobre lo que estás construyendo?",
     ]},
-  { id:"palabra",        area:"Espiritual", areaKey:"spirit",    icon:"✦", name:"Palabra",
+  { id:"palabra", area:"Espiritual", areaKey:"spirit", icon:"✦", name:"Palabra",
+    type:"guided",
+    guide:{
+      intro:"Lee esto con calma. No hay prisa.",
+      done:"Lo leí — medité en esto",
+      later:"Lo leeré más tarde hoy",
+    },
     questions:[
       "¿Hubo algo en la Palabra hoy que te habló directamente?",
       "¿Dedicaste aunque sea cinco minutos a leer o escuchar la Biblia?",
@@ -141,7 +162,9 @@ const PRINCIPLES = [
       "¿Meditaste hoy en algo que Dios ya te había dicho?",
       "¿La Palabra de Dios está guiando tus decisiones de esta semana?",
     ]},
-  { id:"administracion", area:"Financiero", areaKey:"finance",   icon:"◈", name:"Administración",
+  { id:"administracion", area:"Financiero", areaKey:"finance", icon:"◈", name:"Administración",
+    type:"three_way",
+    nudge:"Tómate 5 minutos hoy para revisar tus gastos — aunque sea una vez.",
     questions:[
       "¿Sabes a dónde fue cada peso que salió de tus manos hoy?",
       "¿Tomaste alguna decisión financiera hoy de la que te sientas bien?",
@@ -149,7 +172,9 @@ const PRINCIPLES = [
       "¿Hubo algo que quisiste comprar y decidiste esperar?",
       "¿Revisaste hoy cómo están tus finanzas aunque sea brevemente?",
     ]},
-  { id:"ahorro",         area:"Financiero", areaKey:"finance",   icon:"◈", name:"Ahorro",
+  { id:"ahorro", area:"Financiero", areaKey:"finance", icon:"◈", name:"Ahorro",
+    type:"three_way",
+    nudge:"Aunque sea un porcentaje pequeño — aparta algo hoy antes de gastar.",
     questions:[
       "¿Pusiste algo aparte hoy, aunque sea pequeño, para tu futuro?",
       "¿Estás siendo la hormiga que guarda en verano, o el que gasta todo?",
@@ -157,7 +182,9 @@ const PRINCIPLES = [
       "¿Tu futuro self te agradecería las decisiones que tomaste hoy?",
       "¿Hiciste algo hoy que te acerque a tu fondo de emergencia?",
     ]},
-  { id:"diligencia",     area:"Carácter",   areaKey:"character", icon:"◆", name:"Diligencia",
+  { id:"diligencia", area:"Carácter", areaKey:"character", icon:"◆", name:"Diligencia",
+    type:"three_way",
+    nudge:"Elige una tarea pendiente y resuélvela antes de cerrar el día.",
     questions:[
       "¿Diste lo mejor de ti hoy o hiciste lo mínimo para salir del paso?",
       "¿Hay algo que dejaste pendiente hoy que podrías haber resuelto?",
@@ -165,7 +192,9 @@ const PRINCIPLES = [
       "¿Tu esfuerzo de hoy te acerca a donde quieres estar en un año?",
       "¿Fuiste productivo con el tiempo que Dios te dio hoy?",
     ]},
-  { id:"honestidad",     area:"Carácter",   areaKey:"character", icon:"◆", name:"Honestidad",
+  { id:"honestidad", area:"Carácter", areaKey:"character", icon:"◆", name:"Honestidad",
+    type:"three_way",
+    nudge:"Si hay algo pendiente de aclarar con alguien — hoy es el día.",
     questions:[
       "¿Fuiste completamente honesto en todas tus interacciones de hoy?",
       "¿Hubo algo hoy donde elegiste la integridad aunque costara?",
@@ -173,7 +202,9 @@ const PRINCIPLES = [
       "¿Actuaste hoy igual con o sin testigos?",
       "¿Hay algo pendiente de resolver con alguien por falta de honestidad?",
     ]},
-  { id:"comunidad",      area:"Relacional", areaKey:"relation",  icon:"◉", name:"Comunidad",
+  { id:"comunidad", area:"Relacional", areaKey:"relation", icon:"◉", name:"Comunidad",
+    type:"three_way",
+    nudge:"Envía un mensaje hoy a alguien que te edifica — aunque sea breve.",
     questions:[
       "¿Estuviste hoy conectado con alguien que te edifica de verdad?",
       "¿Hiciste algo hoy para fortalecer una relación que importa?",
@@ -181,7 +212,9 @@ const PRINCIPLES = [
       "¿Tu círculo más cercano sabe hacia dónde vas y te empuja ahí?",
       "¿Te conectaste hoy con alguien de mayor nivel que tú?",
     ]},
-  { id:"mentores",       area:"Relacional", areaKey:"relation",  icon:"◉", name:"Consejo Sabio",
+  { id:"mentores", area:"Relacional", areaKey:"relation", icon:"◉", name:"Consejo Sabio",
+    type:"three_way",
+    nudge:"Si tienes una decisión pendiente — habla con alguien antes de decidir.",
     questions:[
       "¿Buscaste o aplicaste consejo de alguien más sabio esta semana?",
       "¿Tienes a alguien a quien rendir cuentas de verdad?",
@@ -888,16 +921,26 @@ function CheckinTab({ checkins, setCheckins, profile, tithes, setTithes }) {
             </div>
           </div>
 
-          {/* 2 — Question */}
+          {/* 2 — Question or guided intro */}
           <div style={{ padding:"16px 20px 0" }}>
-            <p style={{ fontSize:20, fontFamily:D, fontWeight:600, color:C.ink, lineHeight:1.5 }}>{question}</p>
+            <p style={{ fontSize:20, fontFamily:D, fontWeight:600, color:C.ink, lineHeight:1.5 }}>
+              {principle.type === "guided" ? principle.guide.intro : question}
+            </p>
           </div>
 
-          {/* 3 — Verse auto-appears */}
+          {/* 3 — Verse auto-appears (+ guided focus for Oración) */}
           <div style={{ padding:"14px 20px 0" }}>
             {verseVisible && verse && (
               <div className="verse-in" style={{ background:area.bg, borderRadius:14, padding:"13px 16px", border:`1px solid ${area.stroke}`, borderLeft:`4px solid ${area.c}` }}>
-                <p style={{ fontSize:13, fontFamily:B, fontStyle:"italic", color:area.c, lineHeight:1.75, marginBottom:7 }}>"{verse.text}"</p>
+                {principle.type === "guided" && principle.guide.focusBank && (
+                  <>
+                    <div style={{ fontSize:11, fontFamily:D, fontWeight:700, color:area.c, marginBottom:6, letterSpacing:"0.1em", textTransform:"uppercase" }}>Enfócate en esto hoy:</div>
+                    <p style={{ fontSize:14, fontFamily:B, color:area.c, lineHeight:1.65, marginBottom:10, fontWeight:600 }}>
+                      "{principle.guide.focusBank[getDayIdx() % principle.guide.focusBank.length]}"
+                    </p>
+                  </>
+                )}
+                <p style={{ fontSize:12, fontFamily:B, fontStyle:"italic", color:area.c, lineHeight:1.75, marginBottom:7 }}>"{verse.text}"</p>
                 <div style={{ fontSize:10, fontFamily:D, fontWeight:700, color:area.c, opacity:0.65 }}>— {verse.ref}</div>
               </div>
             )}
@@ -922,11 +965,36 @@ function CheckinTab({ checkins, setCheckins, profile, tithes, setTithes }) {
 
           <div style={{ margin:"14px 20px 0", height:1, background:C.stroke }} />
 
-          {/* 5 — Buttons */}
-          <div style={{ padding:"14px 20px 20px", display:"flex", gap:10 }}>
-            <button onClick={() => answer(false)} style={{ flex:1, padding:"12px", background:"transparent", border:`1.5px solid ${C.stroke}`, borderRadius:12, color:C.inkMute, fontSize:13, fontFamily:D, fontWeight:600, cursor:"pointer", minHeight:46 }}>No hoy</button>
-            <button onClick={() => answer(true)}  style={{ flex:2, padding:"12px", background:area.c, border:"none", borderRadius:12, color:"#FFF", fontSize:14, fontFamily:D, fontWeight:700, cursor:"pointer", minHeight:46, boxShadow:`0 4px 14px ${area.glow}` }}>Sí, lo hice ✓</button>
-          </div>
+          {/* 5 — Buttons: GUIDED vs THREE-WAY */}
+          {principle.type === "guided" ? (
+            <div style={{ padding:"14px 20px 20px" }}>
+              <button onClick={() => answer(true)} style={{ ...css.btn(area.c, "#FFF"), boxShadow:`0 4px 14px ${area.glow}`, marginBottom:10 }}>
+                {principle.guide.done}
+              </button>
+              <button onClick={() => answer("later")} style={{ ...css.btnOut(C.inkFaint), width:"100%", textAlign:"center", fontSize:12 }}>
+                {principle.guide.later}
+              </button>
+            </div>
+          ) : (
+            <div style={{ padding:"14px 20px 20px", display:"flex", flexDirection:"column", gap:10 }}>
+              <button onClick={() => answer(true)} style={{ ...css.btn(area.c, "#FFF"), boxShadow:`0 4px 14px ${area.glow}` }}>
+                ✓ Sí, lo hice
+              </button>
+              <div style={{ display:"flex", gap:10 }}>
+                <button onClick={() => answer("later")} style={{ flex:1, padding:"12px", background:C.primaryLight, border:`1.5px solid ${C.primary}30`, borderRadius:12, color:C.primary, fontSize:12, fontFamily:D, fontWeight:600, cursor:"pointer", minHeight:44 }}>
+                  Lo haré hoy todavía
+                </button>
+                <button onClick={() => answer(false)} style={{ flex:1, padding:"12px", background:"transparent", border:`1.5px solid ${C.stroke}`, borderRadius:12, color:C.inkFaint, fontSize:12, fontFamily:D, cursor:"pointer", minHeight:44 }}>
+                  Hoy no pudo ser
+                </button>
+              </div>
+              {principle.nudge && (
+                <div style={{ background:C.amberLight, borderRadius:10, padding:"9px 13px", border:`1px solid ${C.amber}20` }}>
+                  <p style={{ fontSize:11, fontFamily:B, color:C.amber, lineHeight:1.6 }}>💡 {principle.nudge}</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <div style={{ height:20, flexShrink:0 }} />
       </div>
