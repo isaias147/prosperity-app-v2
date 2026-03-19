@@ -1,1033 +1,1192 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+
+// ── GLOBAL STYLES ─────────────────────────────────────────────────────────────
+const GlobalStyles = () => (
+  <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    @keyframes slideInUp  { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes scaleIn    { from { opacity:0; transform:scale(0.94); } to { opacity:1; transform:scale(1); } }
+    @keyframes bounceIn   { 0% { opacity:0; transform:scale(0.6); } 60% { opacity:1; transform:scale(1.06); } 100% { transform:scale(1); } }
+    @keyframes verseSlide { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes fadeIn     { from { opacity:0; } to { opacity:1; } }
+    .reveal      { animation: slideInUp 0.45s cubic-bezier(0.16,1,0.3,1) both; }
+    .reveal-fast { animation: slideInUp 0.3s cubic-bezier(0.16,1,0.3,1) both; }
+    .scale-in    { animation: scaleIn 0.4s cubic-bezier(0.16,1,0.3,1) both; }
+    .bounce      { animation: bounceIn 0.5s cubic-bezier(0.16,1,0.3,1) both; }
+    .verse-in    { animation: verseSlide 0.55s cubic-bezier(0.16,1,0.3,1) both; }
+    .fade-in     { animation: fadeIn 0.4s ease both; }
+    .d1 { animation-delay:0.07s; } .d2 { animation-delay:0.15s; }
+    .d3 { animation-delay:0.23s; } .d4 { animation-delay:0.31s; }
+    .d5 { animation-delay:0.39s; }
+    button:active { transform:scale(0.97) !important; }
+    ::-webkit-scrollbar { display:none; }
+    textarea { font-family: 'Instrument Sans', system-ui, sans-serif; }
+    textarea:focus { outline:none; }
+    textarea::placeholder { color:#B0AAA3; }
+    input:focus { outline:none; }
+  `}</style>
+);
 
 // ── DESIGN TOKENS ─────────────────────────────────────────────────────────────
-const T = {
-  bg: "#FAFAF8", surface: "#FFFFFF", surfaceAlt: "#F4F3EF",
-  border: "#E8E6E0", borderStrong: "#C8C4B8",
-  text: "#1A1916", textMid: "#4A4840", textMuted: "#8A8780", textFaint: "#B8B5AE",
-  accent: "#2D5A3D", accentLight: "#E8F0EB", accentMid: "#4A7A5A",
-  danger: "#C0392B", dangerLight: "#FDECEA",
+const C = {
+  bg:           "#F9F7F3",
+  warm:         "#EDE9E2",
+  surface:      "#FFFFFF",
+  ink:          "#181614",
+  inkMid:       "#3D3934",
+  inkMute:      "#7A7570",
+  inkFaint:     "#B0AAA3",
+  stroke:       "#E5E1D9",
+  primary:      "#1E4D30",
+  primaryLight: "#EAF0EC",
+  primaryMid:   "#2D6B43",
+  primaryGlow:  "rgba(30,77,48,0.15)",
+  amber:        "#8A6020",
+  amberLight:   "#F5EDD8",
+  amberGlow:    "rgba(138,96,32,0.12)",
+  danger:       "#8A2020",
+  dangerLight:  "#FAE8E8",
   areas: {
-    Espiritual: { color: "#8B6914", bg: "#FBF5E6", border: "#E8D48A", desc: "Tu conexión con Dios es la base de todo lo demás. Estos hábitos alimentan tu alma y activan las promesas de Dios en tu vida." },
-    Financiero:  { color: "#1A5C42", bg: "#E8F5EF", border: "#8ECFB0", desc: "La fidelidad en el dinero es una disciplina espiritual. Aquí mides si estás siendo fiel en lo poco para que Dios te confíe lo mucho." },
-    "Carácter":  { color: "#4A2D8A", bg: "#F0EBFA", border: "#B89EE0", desc: "La prosperidad externa siempre refleja lo que hay adentro. Estos hábitos forman la persona que puede sostener la abundancia." },
-    Relacional:  { color: "#8A2D2D", bg: "#FAE8E8", border: "#E0A0A0", desc: "Nadie prospera solo. Las relaciones correctas aceleran tu camino y las incorrectas lo detienen." },
+    spirit:    { c:"#7A5800", bg:"#FBF3E2", stroke:"#E8CF8A", glow:"rgba(122,88,0,0.08)"   },
+    finance:   { c:"#1E4D30", bg:"#EAF0EC", stroke:"#90C4A4", glow:"rgba(30,77,48,0.08)"   },
+    character: { c:"#3D2075", bg:"#EDE8FA", stroke:"#B09ADE", glow:"rgba(61,32,117,0.08)"  },
+    relation:  { c:"#7A2020", bg:"#FAE8E8", stroke:"#DE9A9A", glow:"rgba(122,32,32,0.08)"  },
   },
+  levels: {
+    1: { name:"Salida",        color:"#1E4D30", bg:"#EAF0EC", symbol:"◎" },
+    2: { name:"Crecimiento",   color:"#8A6020", bg:"#F5EDD8", symbol:"◈" },
+    3: { name:"Consolidación", color:"#3D2075", bg:"#EDE8FA", symbol:"◆" },
+    4: { name:"Mayordomía",    color:"#7A2020", bg:"#FAE8E8", symbol:"✦" },
+  }
 };
+
+const D = "'Syne', system-ui, sans-serif";
+const B = "'Instrument Sans', system-ui, sans-serif";
 
 // ── VERSE BANKS ───────────────────────────────────────────────────────────────
 const VERSE_BANKS = {
   oracion: [
-    { ref: "Filipenses 4:6", text: "En nada estéis afanosos; sino sean conocidas vuestras peticiones delante de Dios en toda oración." },
-    { ref: "1 Tesalonicenses 5:17", text: "Orad sin cesar." },
-    { ref: "Mateo 6:6", text: "Entra en tu aposento, y cerrada la puerta, ora a tu Padre que está en secreto; y tu Padre que ve en secreto te recompensará." },
-    { ref: "Santiago 5:16", text: "La oración eficaz del justo puede mucho." },
-    { ref: "Jeremías 33:3", text: "Clama a mí y yo te responderé, y te enseñaré cosas grandes y ocultas que tú no conoces." },
+    { text:"En nada estéis afanosos; sino sean conocidas vuestras peticiones delante de Dios en toda oración.", ref:"Filipenses 4:6" },
+    { text:"Clama a mí y yo te responderé, y te enseñaré cosas grandes y ocultas que tú no conoces.", ref:"Jeremías 33:3" },
+    { text:"La oración eficaz del justo puede mucho.", ref:"Santiago 5:16" },
+    { text:"Orad sin cesar.", ref:"1 Tesalonicenses 5:17" },
+    { text:"Entra en tu aposento, y cerrada la puerta, ora a tu Padre que está en secreto.", ref:"Mateo 6:6" },
   ],
   palabra: [
-    { ref: "Josué 1:8", text: "Nunca se apartará de tu boca este libro... medita en él de día y de noche... entonces harás prosperar tu camino." },
-    { ref: "Salmos 119:105", text: "Lámpara es a mis pies tu palabra, y lumbrera a mi camino." },
-    { ref: "Romanos 10:17", text: "La fe viene por el oír, y el oír por la palabra de Dios." },
-    { ref: "Hebreos 4:12", text: "La palabra de Dios es viva y eficaz, y más cortante que toda espada de dos filos." },
-    { ref: "2 Timoteo 3:16", text: "Toda la Escritura es inspirada por Dios y útil para enseñar, para redargüir, para corregir, para instruir en justicia." },
+    { text:"Nunca se apartará de tu boca este libro... medita en él de día y de noche... entonces harás prosperar tu camino.", ref:"Josué 1:8" },
+    { text:"Lámpara es a mis pies tu palabra, y lumbrera a mi camino.", ref:"Salmos 119:105" },
+    { text:"La fe viene por el oír, y el oír por la palabra de Dios.", ref:"Romanos 10:17" },
+    { text:"La palabra de Dios es viva y eficaz, y más cortante que toda espada de dos filos.", ref:"Hebreos 4:12" },
+    { text:"Toda la Escritura es inspirada por Dios y útil para enseñar, para redargüir, para corregir.", ref:"2 Timoteo 3:16" },
   ],
   administracion: [
-    { ref: "Lucas 16:10", text: "El que es fiel en lo muy poco, también en lo más es fiel." },
-    { ref: "Proverbios 27:23", text: "Sé diligente en conocer el estado de tus ovejas, y mira con cuidado por tus rebaños." },
-    { ref: "Proverbios 24:3-4", text: "Con sabiduría se edifica la casa, y con prudencia se afirma." },
-    { ref: "Lucas 14:28", text: "¿Quién de vosotros, queriendo edificar una torre, no se sienta primero y calcula los gastos?" },
-    { ref: "Eclesiastés 11:2", text: "Reparte a siete, y aun a ocho; porque no sabes el mal que vendrá sobre la tierra." },
+    { text:"El que es fiel en lo muy poco, también en lo más es fiel.", ref:"Lucas 16:10" },
+    { text:"Sé diligente en conocer el estado de tus ovejas, y mira con cuidado por tus rebaños.", ref:"Proverbios 27:23" },
+    { text:"Con sabiduría se edifica la casa, y con prudencia se afirma.", ref:"Proverbios 24:3" },
+    { text:"¿Quién de vosotros, queriendo edificar una torre, no se sienta primero y calcula los gastos?", ref:"Lucas 14:28" },
+    { text:"Encomienda al Señor tus obras, y tus pensamientos serán afirmados.", ref:"Proverbios 16:3" },
   ],
   ahorro: [
-    { ref: "Proverbios 21:20", text: "Tesoro precioso y aceite hay en la casa del sabio, pero el hombre necio todo lo disipa." },
-    { ref: "Proverbios 6:6-8", text: "Ve a la hormiga... la cual en el verano hace su provisión y recoge en el tiempo de la siega su mantenimiento." },
-    { ref: "Génesis 41:35", text: "Recojan todos los alimentos de esos años buenos que vienen, y almacenen el trigo." },
-    { ref: "Proverbios 13:11", text: "Las riquezas de vanidad disminuyen, pero el que recoge con mano laboriosa las aumenta." },
-    { ref: "Proverbios 21:5", text: "Los pensamientos del diligente ciertamente son ventajosos." },
-  ],
-  deudas: [
-    { ref: "Romanos 13:8", text: "No debáis a nadie nada, sino el amaros unos a otros." },
-    { ref: "Proverbios 22:7", text: "El rico domina a los pobres, y el que toma prestado es siervo del que presta." },
-    { ref: "Deuteronomio 28:12", text: "Prestarás a muchas naciones, pero tú no pedirás prestado." },
-    { ref: "Proverbios 22:26-27", text: "No seas de aquellos que se comprometen, ni de los que salen por fiadores de deudas." },
-    { ref: "Salmos 37:21", text: "El impío toma prestado y no devuelve; mas el justo tiene misericordia y da." },
+    { text:"Tesoro precioso y aceite hay en la casa del sabio, pero el hombre necio todo lo disipa.", ref:"Proverbios 21:20" },
+    { text:"Ve a la hormiga... la cual en el verano hace su provisión y recoge en el tiempo de la siega.", ref:"Proverbios 6:6-8" },
+    { text:"Los pensamientos del diligente ciertamente son ventajosos.", ref:"Proverbios 21:5" },
+    { text:"Las riquezas de vanidad disminuyen, pero el que recoge con mano laboriosa las aumenta.", ref:"Proverbios 13:11" },
+    { text:"El alma generosa será prosperada; y el que saciare, él también será saciado.", ref:"Proverbios 11:25" },
   ],
   diligencia: [
-    { ref: "Proverbios 10:4", text: "La mano negligente empobrece, pero la mano de los diligentes enriquece." },
-    { ref: "Proverbios 22:29", text: "¿Has visto hombre solícito en su trabajo? Delante de los reyes estará." },
-    { ref: "Colosenses 3:23", text: "Todo lo que hagáis, hacedlo de corazón, como para el Señor y no para los hombres." },
-    { ref: "Proverbios 12:24", text: "La mano de los diligentes gobernará, pero la negligencia será tributaria." },
-    { ref: "Eclesiastés 9:10", text: "Todo lo que te viniere a la mano para hacer, hazlo según tus fuerzas." },
+    { text:"La mano negligente empobrece, pero la mano de los diligentes enriquece.", ref:"Proverbios 10:4" },
+    { text:"Todo lo que hagáis, hacedlo de corazón, como para el Señor y no para los hombres.", ref:"Colosenses 3:23" },
+    { text:"¿Has visto hombre solícito en su trabajo? Delante de los reyes estará.", ref:"Proverbios 22:29" },
+    { text:"Todo lo que te viniere a la mano para hacer, hazlo según tus fuerzas.", ref:"Eclesiastés 9:10" },
+    { text:"La mano de los diligentes gobernará, pero la negligencia será tributaria.", ref:"Proverbios 12:24" },
   ],
   honestidad: [
-    { ref: "Proverbios 11:1", text: "El peso falso es abominación al Señor, pero la pesa exacta le agrada." },
-    { ref: "Proverbios 12:17", text: "El que habla verdad declara justicia; mas el testigo mentiroso, engaño." },
-    { ref: "Lucas 16:10", text: "El que es fiel en lo muy poco, también en lo más es fiel." },
-    { ref: "Proverbios 19:1", text: "Mejor es el pobre que camina en integridad, que el de perversos labios y fatuo." },
-    { ref: "Proverbios 28:6", text: "Mejor es el pobre que camina en su integridad, que el rico de perversos caminos." },
-  ],
-  disciplina: [
-    { ref: "3 Juan 1:2", text: "Amado, deseo que seas prosperado en todo así como prospera tu alma." },
-    { ref: "1 Corintios 9:27", text: "Golpeo mi cuerpo y lo pongo en servidumbre, no sea que yo mismo venga a ser eliminado." },
-    { ref: "Hebreos 12:11", text: "Ninguna disciplina al presente parece ser causa de gozo... pero después da fruto apacible de justicia." },
-    { ref: "Proverbios 25:16", text: "¿Hallaste miel? Come lo que te basta, no sea que de hastío la vomites." },
-    { ref: "Gálatas 5:23", text: "Templanza; contra tales cosas no hay ley." },
+    { text:"El peso falso es abominación al Señor, pero la pesa exacta le agrada.", ref:"Proverbios 11:1" },
+    { text:"Mejor es el pobre que camina en su integridad, que el rico de perversos caminos.", ref:"Proverbios 28:6" },
+    { text:"El que habla verdad declara justicia.", ref:"Proverbios 12:17" },
+    { text:"En Cristo fuisteis también circuncidados... siendo sepultados con él.", ref:"Colosenses 2:11-12" },
+    { text:"No debáis a nadie nada, sino el amaros unos a otros.", ref:"Romanos 13:8" },
   ],
   comunidad: [
-    { ref: "Proverbios 27:17", text: "El hierro con hierro se aguza, y el hombre aguza el rostro de su amigo." },
-    { ref: "Eclesiastés 4:9-10", text: "Mejores son dos que uno... porque si cayeren, el uno levantará a su compañero." },
-    { ref: "Hebreos 10:25", text: "No dejando de congregarnos, como algunos tienen por costumbre, sino exhortándonos." },
-    { ref: "Proverbios 18:1", text: "El hombre que se aparta busca su propio deseo, se opone a todo consejo." },
-    { ref: "Romanos 12:5", text: "Así nosotros, siendo muchos, somos un cuerpo en Cristo." },
+    { text:"El hierro con hierro se aguza, y el hombre aguza el rostro de su amigo.", ref:"Proverbios 27:17" },
+    { text:"Mejores son dos que uno... porque si cayeren, el uno levantará a su compañero.", ref:"Eclesiastés 4:9-10" },
+    { text:"No dejando de congregarnos, como algunos tienen por costumbre, sino exhortándonos.", ref:"Hebreos 10:25" },
+    { text:"El que anda con sabios, sabio será; mas el que se junta con necios será quebrantado.", ref:"Proverbios 13:20" },
+    { text:"Así nosotros, siendo muchos, somos un cuerpo en Cristo.", ref:"Romanos 12:5" },
   ],
   mentores: [
-    { ref: "Proverbios 15:22", text: "Los pensamientos son frustrados donde no hay consejo, pero en la multitud de consejeros se afirman." },
-    { ref: "Proverbios 19:20", text: "Escucha el consejo y acepta la corrección, para que seas sabio en tu vejez." },
-    { ref: "Proverbios 12:15", text: "El camino del necio es recto en su opinión; mas el que obedece al consejo es sabio." },
-    { ref: "Eclesiastés 9:16", text: "La sabiduría es mejor que la fuerza." },
-    { ref: "Proverbios 11:14", text: "En la multitud de consejeros está la victoria." },
-  ],
-  red: [
-    { ref: "Eclesiastés 4:9", text: "Mejores son dos que uno; porque tienen mejor paga de su trabajo." },
-    { ref: "Proverbios 17:17", text: "En todo tiempo ama el amigo, y es como un hermano en tiempo de angustia." },
-    { ref: "Amós 3:3", text: "¿Andarán dos juntos si no estuvieren de acuerdo?" },
-    { ref: "Proverbios 13:20", text: "El que anda con sabios, sabio será; mas el que se junta con necios será quebrantado." },
-    { ref: "1 Corintios 15:33", text: "Las malas conversaciones corrompen las buenas costumbres." },
+    { text:"Los pensamientos son frustrados donde no hay consejo, pero en la multitud de consejeros se afirman.", ref:"Proverbios 15:22" },
+    { text:"Escucha el consejo y acepta la corrección, para que seas sabio en tu vejez.", ref:"Proverbios 19:20" },
+    { text:"El camino del necio es recto en su opinión; mas el que obedece al consejo es sabio.", ref:"Proverbios 12:15" },
+    { text:"La sabiduría es mejor que la fuerza.", ref:"Eclesiastés 9:16" },
+    { text:"En la multitud de consejeros está la victoria.", ref:"Proverbios 11:14" },
   ],
 };
-
-const GRACE_MESSAGES = {
-  streak:     { verse: "1 Juan 1:9",            verseText: "Si confesamos nuestros pecados, él es fiel y justo para perdonar nuestros pecados.",   message: "La racha se rompió, no el pacto. Hoy es un día nuevo." },
-  discipline: { verse: "Lamentaciones 3:22-23", verseText: "Las misericordias del Señor nunca terminan... nuevas son cada mañana.",                 message: "La disciplina no se construye en un día. Se construye un día a la vez." },
-  financial:  { verse: "Proverbios 24:16",       verseText: "Porque siete veces cae el justo y vuelve a levantarse.",                               message: "Fallar en lo financiero no te define. Te define lo que haces después de caer." },
-  shame:      { verse: "Romanos 8:1",            verseText: "Ninguna condenación hay para los que están en Cristo Jesús.",                          message: "La vergüenza dice quédate. La gracia dice vuelve. Vuelve." },
-};
-
-const TITHE_MESSAGES = {
-  noIncome:             "Cuando Dios te provea, honrarlo primero abrirá más puertas.",
-  consistent:           "Estás en pacto con Dios. Las ventanas del cielo están abiertas sobre ti.",
-  reminder_fixed:       "Recuerda honrar a Dios con tus primicias. El diezmo activa tu pacto.",
-  reminder_independent: "Ha pasado una semana. ¿Has diezmado? Tu negocio prospera cuando Dios es el socio principal.",
-  reminder_temporary:   "Cada ingreso es una oportunidad de honrar a Dios primero.",
-};
-
-const WELCOME_SCREENS = [
-  {
-    icon: "✦",
-    title: "Prospera en Todo",
-    subtitle: "El sistema bíblico de prosperidad integral",
-    body: "Esta app no es magia ni motivación. Es un espejo.\n\nTe muestra si lo que haces cada día es consistente con lo que dices querer. La Biblia contiene un sistema completo de transformación — disciplina, principios y accountability — que produce prosperidad real cuando se aplica con constancia.\n\nTu propósito aquí es uno: prosperar en todo, así como prospera tu alma.",
-    verse: { ref: "3 Juan 1:2", text: "Amado, deseo que seas prosperado en todo así como prospera tu alma, y que tengas buena salud." },
-  },
-  {
-    icon: "◈",
-    title: "¿Cómo funciona?",
-    subtitle: "Cuatro herramientas, un propósito",
-    tabs: [
-      { icon: "✦", name: "Check-in", desc: "Tu rutina diaria. Cada día respondes preguntas sobre los 4 principios bíblicos: Espiritual, Financiero, Carácter y Relacional. Escribe una reflexión honesta — eso es el corazón de todo." },
-      { icon: "◈", name: "Progreso", desc: "Tu historial visual. Ve cómo has avanzado en los últimos 7 días, por área y en total. La IA interpreta tus números y te dice qué significan." },
-      { icon: "◆", name: "Metas", desc: "Define lo que quieres lograr. La IA genera submetas personalizadas. Tu avance se detecta automáticamente a través de lo que escribes en el check-in." },
-      { icon: "◉", name: "Historial", desc: "El registro completo de tu camino. Cada día que usas la app queda registrado aquí con su conclusión." },
-    ],
-  },
-];
 
 const PRINCIPLES = [
+  { id:"oracion",        area:"Espiritual", areaKey:"spirit",    icon:"✦", name:"Oración",
+    questions:[
+      "¿Tuviste hoy un momento real con Dios — aunque sea corto?",
+      "¿Le confiaste algo a Dios hoy o lo cargaste tú solo?",
+      "¿Hubo algo que te preocupó hoy que pudiste llevar a Él?",
+      "¿Sentiste la presencia de Dios en algún momento de tu día?",
+      "¿Le hablaste a Dios sobre lo que estás construyendo?",
+    ]},
+  { id:"palabra",        area:"Espiritual", areaKey:"spirit",    icon:"✦", name:"Palabra",
+    questions:[
+      "¿Hubo algo en la Palabra hoy que te habló directamente?",
+      "¿Dedicaste aunque sea cinco minutos a leer o escuchar la Biblia?",
+      "¿Hay una verdad bíblica que estés aplicando esta semana?",
+      "¿Meditaste hoy en algo que Dios ya te había dicho?",
+      "¿La Palabra de Dios está guiando tus decisiones de esta semana?",
+    ]},
+  { id:"administracion", area:"Financiero", areaKey:"finance",   icon:"◈", name:"Administración",
+    questions:[
+      "¿Sabes a dónde fue cada peso que salió de tus manos hoy?",
+      "¿Tomaste alguna decisión financiera hoy de la que te sientas bien?",
+      "¿Fuiste fiel con los recursos que Dios puso en tus manos hoy?",
+      "¿Hubo algo que quisiste comprar y decidiste esperar?",
+      "¿Revisaste hoy cómo están tus finanzas aunque sea brevemente?",
+    ]},
+  { id:"ahorro",         area:"Financiero", areaKey:"finance",   icon:"◈", name:"Ahorro",
+    questions:[
+      "¿Pusiste algo aparte hoy, aunque sea pequeño, para tu futuro?",
+      "¿Estás siendo la hormiga que guarda en verano, o el que gasta todo?",
+      "¿Tienes claro cuánto estás ahorrando este mes?",
+      "¿Tu futuro self te agradecería las decisiones que tomaste hoy?",
+      "¿Hiciste algo hoy que te acerque a tu fondo de emergencia?",
+    ]},
+  { id:"diligencia",     area:"Carácter",   areaKey:"character", icon:"◆", name:"Diligencia",
+    questions:[
+      "¿Diste lo mejor de ti hoy o hiciste lo mínimo para salir del paso?",
+      "¿Hay algo que dejaste pendiente hoy que podrías haber resuelto?",
+      "¿Trabajaste hoy como si Dios estuviera mirando cada detalle?",
+      "¿Tu esfuerzo de hoy te acerca a donde quieres estar en un año?",
+      "¿Fuiste productivo con el tiempo que Dios te dio hoy?",
+    ]},
+  { id:"honestidad",     area:"Carácter",   areaKey:"character", icon:"◆", name:"Honestidad",
+    questions:[
+      "¿Fuiste completamente honesto en todas tus interacciones de hoy?",
+      "¿Hubo algo hoy donde elegiste la integridad aunque costara?",
+      "¿Tu palabra vale tanto como tu firma en este momento de tu vida?",
+      "¿Actuaste hoy igual con o sin testigos?",
+      "¿Hay algo pendiente de resolver con alguien por falta de honestidad?",
+    ]},
+  { id:"comunidad",      area:"Relacional", areaKey:"relation",  icon:"◉", name:"Comunidad",
+    questions:[
+      "¿Estuviste hoy conectado con alguien que te edifica de verdad?",
+      "¿Hiciste algo hoy para fortalecer una relación que importa?",
+      "¿Hubo alguien hoy a quien pudiste ayudar o motivar?",
+      "¿Tu círculo más cercano sabe hacia dónde vas y te empuja ahí?",
+      "¿Te conectaste hoy con alguien de mayor nivel que tú?",
+    ]},
+  { id:"mentores",       area:"Relacional", areaKey:"relation",  icon:"◉", name:"Consejo Sabio",
+    questions:[
+      "¿Buscaste o aplicaste consejo de alguien más sabio esta semana?",
+      "¿Tienes a alguien a quien rendir cuentas de verdad?",
+      "¿Hay una decisión que deberías consultar antes de tomar?",
+      "¿Estás aprendiendo de alguien que ya está donde quieres llegar?",
+      "¿Eres tú también consejo y apoyo para alguien que está empezando?",
+    ]},
+];
+
+const PRINCIPLE_IDS = PRINCIPLES.map(p => p.id);
+
+// ── ONBOARDING DATA ───────────────────────────────────────────────────────────
+const MINDSET_QUESTIONS = [
   {
-    area: "Espiritual", icon: "✦",
-    items: [
-      { id: "oracion",  name: "Oración",        practice: "¿Oré y presenté mis metas a Dios hoy?" },
-      { id: "palabra",  name: "Palabra",         practice: "¿Leí y medité en la Palabra hoy?" },
+    id:"money_feeling",
+    q:"Cuando piensas en tener mucho más dinero del que tienes ahora, ¿qué sientes primero?",
+    opts:[
+      { label:"Emoción — lo visualizo y me motiva",         value:"growth" },
+      { label:"Duda — no sé si es realmente para mí",       value:"doubt"  },
+      { label:"Miedo — no sé si podría manejarlo",          value:"fear"   },
+      { label:"Culpa — siento que no debería quererlo",     value:"guilt"  },
+      { label:"Nada en particular",                          value:"neutral"},
     ]
   },
   {
-    area: "Financiero", icon: "◈",
-    items: [
-      { id: "administracion", name: "Administración", practice: "¿Administré bien cada recurso hoy?" },
-      { id: "ahorro",         name: "Ahorro",          practice: "¿Aparté algo para ahorro o inversión hoy?" },
-      { id: "deudas",         name: "Deudas",          practice: "¿Trabajé en reducir mis deudas hoy?" },
+    id:"money_belief",
+    q:"¿Con cuál de estas frases te identificas más en este momento?",
+    opts:[
+      { label:"El dinero es una herramienta — ni buena ni mala",      value:"tool"    },
+      { label:"El dinero cambia a las personas, para mal",            value:"fear"    },
+      { label:"El dinero es una bendición que hay que saber llevar",  value:"growth"  },
+      { label:"El dinero es para disfrutarlo, no para acumularlo",    value:"consume" },
+      { label:"El dinero trae más problemas que soluciones",          value:"guilt"   },
     ]
   },
   {
-    area: "Carácter", icon: "◆",
-    items: [
-      { id: "diligencia", name: "Diligencia", practice: "¿Trabajé con excelencia y sin pereza hoy?" },
-      { id: "honestidad", name: "Honestidad", practice: "¿Fui completamente honesto en todo hoy?" },
-      { id: "disciplina", name: "Disciplina", practice: "¿Me discipliné en hábitos que prosperan mi alma?" },
+    id:"others_success",
+    q:"Cuando alguien de tu círculo logra una mejora económica grande, ¿qué es lo primero que piensas?",
+    opts:[
+      { label:"Me alegra — me inspira que es posible",          value:"growth"  },
+      { label:"Me alegra pero siento algo de envidia",          value:"scarcity"},
+      { label:"Pienso cómo lo logró para aprender",             value:"growth"  },
+      { label:"Me pregunto si será sostenible",                 value:"doubt"   },
+      { label:"Depende mucho de la persona",                    value:"neutral" },
     ]
   },
   {
-    area: "Relacional", icon: "◉",
-    items: [
-      { id: "comunidad", name: "Comunidad",     practice: "¿Me conecté con personas que me edifican hoy?" },
-      { id: "mentores",  name: "Consejo Sabio", practice: "¿Busqué o apliqué consejo de alguien más sabio?" },
-      { id: "red",       name: "Red",           practice: "¿Invertí en relaciones estratégicas hoy?" },
+    id:"family_money",
+    q:"¿Cómo describirías la relación con el dinero que viste en tu familia cuando crecías?",
+    opts:[
+      { label:"Era un tema de tensión y preocupación constante",  value:"scarcity" },
+      { label:"Era normal — ni mucho ni poco, se vivía bien",     value:"neutral"  },
+      { label:"Era algo de lo que no se hablaba",                 value:"avoid"    },
+      { label:"Era un tema de fe — Dios proveerá",               value:"faith"    },
+      { label:"Era algo que había que trabajar duro para tener",  value:"growth"   },
     ]
-  }
+  },
+  {
+    id:"money_purpose",
+    q:"¿Cuál de estas frases describe mejor para qué quieres prosperar?",
+    opts:[
+      { label:"Para no preocuparme más por el dinero",              value:"security"    },
+      { label:"Para poder dar y ayudar a otros",                    value:"steward"     },
+      { label:"Para disfrutar la vida que me merezco",              value:"consume"     },
+      { label:"Para dejarle algo importante a mi familia",          value:"legacy"      },
+      { label:"Para tener libertad de hacer lo que Dios me llame", value:"purpose"     },
+      { label:"Todavía no tengo muy claro para qué",               value:"unclear"     },
+    ]
+  },
+  {
+    id:"self_admin",
+    q:"Si tuvieras que describirte como administrador de lo que tienes ahora, ¿qué dirías?",
+    opts:[
+      { label:"Soy bastante ordenado con mis recursos",              value:"good"    },
+      { label:"Me falta más disciplina de la que tengo",             value:"growing" },
+      { label:"No tengo suficiente como para administrar",           value:"level1"  },
+      { label:"Sé que puedo mejorar pero no sé por dónde empezar",  value:"lost"    },
+      { label:"Prefiero no pensarlo mucho",                          value:"avoid"   },
+    ]
+  },
+  {
+    id:"mistakes",
+    q:"Cuando tomas una decisión financiera que después no fue la mejor, ¿qué piensas generalmente?",
+    opts:[
+      { label:"Fue mala suerte o las circunstancias",          value:"external" },
+      { label:"Debí haberlo pensado mejor — aprendo y sigo",   value:"growth"   },
+      { label:"Me cuesta mucho soltar ese tipo de errores",    value:"stuck"    },
+      { label:"Trato de no darle muchas vueltas",              value:"avoid"    },
+      { label:"Lo analizo para no repetirlo",                  value:"growth"   },
+    ]
+  },
+  {
+    id:"ask_help",
+    q:"¿Qué tan fácil te resulta pedir ayuda o consejo cuando algo no te está funcionando?",
+    opts:[
+      { label:"Lo hago naturalmente — no me cuesta",                  value:"open"    },
+      { label:"Lo hago pero me cuesta un poco",                       value:"growing" },
+      { label:"Prefiero resolverlo solo antes de pedir ayuda",        value:"pride"   },
+      { label:"Casi nunca pido ayuda — me cuesta mucho",             value:"closed"  },
+      { label:"No tengo a quién pedirle realmente",                   value:"alone"   },
+    ]
+  },
 ];
 
-const LEVELS = [
-  { id: 1, name: "Salida",        color: "#1A5C42", objective: "Estabilidad financiera",  minDays: 60,  minPct: 65, minGoals: 1 },
-  { id: 2, name: "Crecimiento",   color: "#8B6914", objective: "Abundancia sostenible",   minDays: 90,  minPct: 70, minGoals: 2 },
-  { id: 3, name: "Consolidación", color: "#4A2D8A", objective: "Riqueza generacional",    minDays: 120, minPct: 75, minGoals: 3 },
-  { id: 4, name: "Mayordomía",    color: "#8A2D2D", objective: "Impacto del Reino",       minDays: 0,   minPct: 0,  minGoals: 0 },
+const SITUATION_QUESTIONS = [
+  {
+    id:"income_type",
+    q:"¿Cómo describes tu situación de ingresos actualmente?",
+    opts:[
+      { label:"Empleado fijo",     desc:"Salario estable cada mes o quincena",                    value:"fixed"      },
+      { label:"Empleado temporal", desc:"Por contratos o proyectos con ingresos variables",        value:"temp"       },
+      { label:"Emprendedor",       desc:"Negocio propio o trabajo independiente",                  value:"entrepreneur"},
+      { label:"Inversionista",     desc:"Mis ingresos vienen principalmente de inversiones",       value:"investor"   },
+      { label:"Sin ingresos",      desc:"Estoy buscando trabajo o en transición",                  value:"none"       },
+    ]
+  },
+  {
+    id:"debt_range",
+    q:"¿Cuál es tu situación actual de deudas?",
+    opts:[
+      { label:"No tengo deudas",          desc:"", value:"none"   },
+      { label:"Menos de $1,000",          desc:"", value:"low"    },
+      { label:"Entre $1,000 y $5,000",    desc:"", value:"mid"    },
+      { label:"Entre $5,000 y $20,000",   desc:"", value:"high"   },
+      { label:"Más de $20,000",           desc:"", value:"severe" },
+    ]
+  },
+  {
+    id:"savings",
+    q:"¿Tienes algún ahorro activo en este momento?",
+    opts:[
+      { label:"No tengo ahorro",                    desc:"", value:"none"     },
+      { label:"Algo, pero muy poco",                desc:"", value:"minimal"  },
+      { label:"Sí, ahorro ocasionalmente",          desc:"", value:"occasional"},
+      { label:"Sí, tengo un hábito activo de ahorro", desc:"", value:"active" },
+    ]
+  },
+  {
+    id:"community",
+    q:"¿Tienes comunidad de fe activa en tu vida?",
+    opts:[
+      { label:"No tengo comunidad actualmente",      desc:"", value:"none"      },
+      { label:"Tengo pero asisto poco",              desc:"", value:"minimal"   },
+      { label:"Sí, participo ocasionalmente",        desc:"", value:"occasional"},
+      { label:"Sí, estoy comprometido activamente",  desc:"", value:"active"    },
+    ]
+  },
+  {
+    id:"mentor",
+    q:"¿Tienes mentores o personas de accountability en tu vida?",
+    opts:[
+      { label:"No tengo",                            desc:"", value:"none"     },
+      { label:"Tengo pero de manera informal",       desc:"", value:"informal" },
+      { label:"Sí, tengo mentoría activa",           desc:"", value:"active"   },
+    ]
+  },
+  {
+    id:"tithe",
+    q:"¿Diezmas actualmente?",
+    opts:[
+      { label:"No diezmo",                desc:"", value:"none"         },
+      { label:"Ocasionalmente",           desc:"", value:"occasional"   },
+      { label:"Sí, consistentemente",     desc:"", value:"consistent"   },
+    ]
+  },
+  {
+    id:"bible_version",
+    q:"¿Cuál versión de la Biblia prefieres?",
+    opts:[
+      { label:"RVR 1960", desc:"Reina Valera Revisada — clásica y tradicional",          value:"es-RVR1960" },
+      { label:"NVI",      desc:"Nueva Versión Internacional — lenguaje contemporáneo",   value:"es-NVI"     },
+      { label:"LBLA",     desc:"La Biblia de las Américas — traducción literal",         value:"es-LBLA"    },
+      { label:"DHH",      desc:"Dios Habla Hoy — lenguaje sencillo y accesible",        value:"es-DHH"     },
+    ]
+  },
 ];
 
-const OB_STEPS = [
-  { id: "has_income",      q: "¿Tienes algún tipo de ingreso actualmente?",              opts: [{ label: "Sí, tengo ingresos", desc: "" }, { label: "No tengo ingresos", desc: "" }] },
-  { id: "employment_type", q: "¿Cómo describes tu situación laboral?",                   conditional: { key: "has_income", value: 0 }, opts: [{ label: "Empleado fijo", desc: "Recibes un salario estable cada mes o quincena" }, { label: "Empleado temporal", desc: "Trabajas por contratos o proyectos con ingresos variables" }, { label: "Emprendedor", desc: "Tienes tu propio negocio o trabajas de forma independiente" }, { label: "Inversionista", desc: "Tus ingresos provienen principalmente de inversiones o activos" }] },
-  { id: "has_debts",       q: "¿Cuál es tu situación actual de deudas?",                 opts: [{ label: "Tengo deudas significativas", desc: "" }, { label: "Estoy reduciendo deudas", desc: "" }, { label: "Sin deudas o mínimas", desc: "" }] },
-  { id: "has_savings",     q: "¿Ahorras regularmente?",                                  opts: [{ label: "No tengo ahorro", desc: "" }, { label: "Ahorro ocasional", desc: "" }, { label: "Ahorro activo y constante", desc: "" }] },
-  { id: "has_community",   q: "¿Tienes comunidad de fe activa?",                         opts: [{ label: "No tengo", desc: "" }, { label: "Ocasional", desc: "" }, { label: "Activa y comprometida", desc: "" }] },
-  { id: "has_mentor",      q: "¿Tienes mentores o personas de accountability?",          opts: [{ label: "No tengo", desc: "" }, { label: "Informal", desc: "" }, { label: "Mentoría activa", desc: "" }] },
-  { id: "bible_version",   q: "¿Cuál versión de la Biblia prefieres?",                   opts: [{ label: "RVR 1960", desc: "Reina Valera Revisada — clásica y tradicional" }, { label: "NVI", desc: "Nueva Versión Internacional — lenguaje contemporáneo" }, { label: "LBLA", desc: "La Biblia de las Américas — traducción literal" }, { label: "DHH", desc: "Dios Habla Hoy — lenguaje sencillo y accesible" }] },
+const GOAL_TIMEFRAMES = [
+  { label:"3 meses",        value:"3m"      },
+  { label:"6 meses",        value:"6m"      },
+  { label:"1 año",          value:"1y"      },
+  { label:"2 a 3 años",     value:"2-3y"    },
+  { label:"Es un camino de vida", value:"life" },
 ];
-
-const VERSION_MAP = { 0: "es-RVR1960", 1: "es-NVI", 2: "es-LBLA", 3: "es-DHH" };
-const MIN_NARRATIVE = 600;
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
-const ALL_IDS    = PRINCIPLES.flatMap(p => p.items.map(i => i.id));
 const todayKey   = () => new Date().toISOString().split("T")[0];
-const fmt        = (d) => new Date(d + "T12:00:00").toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
-const fmtShort   = (d) => new Date(d + "T12:00:00").toLocaleDateString("es-ES", { day: "numeric", month: "short" });
-const getLast7   = () => Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); return d.toISOString().split("T")[0]; });
+const fmt        = (d) => new Date(d + "T12:00:00").toLocaleDateString("es-ES", { weekday:"long", day:"numeric", month:"long" });
+const fmtShort   = (d) => new Date(d + "T12:00:00").toLocaleDateString("es-ES", { day:"numeric", month:"short" });
+const getLast7   = () => Array.from({ length:7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - (6-i)); return d.toISOString().split("T")[0]; });
+const getDayIdx  = () => Math.floor((new Date() - new Date("2024-01-01")) / 86400000);
 const lsGet      = (key, fb) => { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fb; } catch { return fb; } };
 const lsSet      = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} };
-const areaTokens = (a) => T.areas[a] || T.areas.Espiritual;
-const getDailyVerse  = (id) => { const b = VERSE_BANKS[id] || []; if (!b.length) return null; const diff = Math.floor((new Date() - new Date("2024-01-01")) / 86400000); return b[diff % b.length]; };
-const scoreToLevel   = (a) => { let s = 0; if (a.has_income === 0) s += 1; if (a.has_debts === 1) s += 1; if (a.has_debts === 2) s += 2; if (a.has_savings === 1) s += 1; if (a.has_savings === 2) s += 2; if (a.has_community === 1) s += 1; if (a.has_community === 2) s += 2; if (a.has_mentor === 1) s += 1; if (a.has_mentor === 2) s += 2; return s >= 9 ? 2 : 1; };
-const isAfter6pm     = () => new Date().getHours() >= 18;
-const getTitheMessage = (profile, tithes) => { if (!profile.has_income || profile.has_income === 1) return TITHE_MESSAGES.noIncome; const recent = tithes.filter(t => (new Date() - new Date(t.date)) / 86400000 <= 30); if (recent.length >= 2) return TITHE_MESSAGES.consistent; if (profile.employment_type === 0) return TITHE_MESSAGES.reminder_fixed; if (profile.employment_type === 2) return TITHE_MESSAGES.reminder_independent; return TITHE_MESSAGES.reminder_temporary; };
-const getFallbackConclusion = (pct) => {
-  if (pct >= 86) return { message: "Día de excelencia. Esto es lo que produce prosperidad real. Sigue así.", verse: "Proverbios 22:29", verseText: "¿Has visto hombre solícito en su trabajo? Delante de los reyes estará.", level: "excellent" };
-  if (pct >= 61) return { message: "Buen día. Estás siendo fiel en lo poco. Lucas 16:10 se está cumpliendo en ti.", verse: "Lucas 16:10", verseText: "El que es fiel en lo muy poco, también en lo más es fiel.", level: "good" };
-  if (pct >= 31) return { message: "Estás construyendo el hábito. La constancia supera la perfección. Sigue adelante.", verse: "Gálatas 6:9", verseText: "A su tiempo segaremos, si no desmayamos.", level: "building" };
-  return { message: "Hoy fue difícil. Mañana es un día nuevo. Un paso es mejor que ninguno.", verse: "Lamentaciones 3:22-23", verseText: "Las misericordias del Señor nunca terminan, nuevas son cada mañana.", level: "restart" };
+
+// Detect level from onboarding answers
+const detectLevel = (situation, mindset, goalText) => {
+  let score = 0;
+  if (situation.debt_range === "none")   score += 3;
+  if (situation.debt_range === "low")    score += 2;
+  if (situation.debt_range === "mid")    score += 1;
+  if (situation.savings === "active")    score += 2;
+  if (situation.savings === "occasional") score += 1;
+  if (situation.income_type === "entrepreneur") score += 1;
+  if (situation.income_type === "investor")     score += 2;
+  if (situation.tithe === "consistent")  score += 2;
+  if (situation.tithe === "occasional")  score += 1;
+  if (situation.mentor === "active")     score += 2;
+  if (situation.mentor === "informal")   score += 1;
+  if (situation.community === "active")  score += 1;
+  const mindsetScore = Object.values(mindset).filter(v => v === "growth" || v === "steward" || v === "purpose" || v === "legacy").length;
+  score += mindsetScore;
+  if (score >= 16) return 3;
+  if (score >= 9)  return 2;
+  return 1;
 };
 
-// ── API CALLS ─────────────────────────────────────────────────────────────────
+// Tithe message based on profile
+const getTitheMessage = (profile, tithes) => {
+  if (profile.situation?.income_type === "none") return { msg:"Cuando Dios te provea, honrarlo primero abre las puertas.", type:"prepare" };
+  const recent = (tithes || []).filter(t => (new Date() - new Date(t.date)) / 86400000 <= 30);
+  if (recent.length >= 2) return { msg:"Estás en pacto con Dios. Las ventanas del cielo están abiertas sobre ti.", type:"celebrate" };
+  if (profile.situation?.income_type === "fixed")       return { msg:"Recuerda honrar a Dios con tus primicias. El diezmo activa tu pacto.", type:"remind" };
+  if (profile.situation?.income_type === "entrepreneur") return { msg:"¿Has diezmado esta semana? Tu negocio prospera cuando Dios es el socio principal.", type:"remind" };
+  return { msg:"Cada ingreso es una oportunidad de honrar a Dios primero.", type:"remind" };
+};
+
+// AI calls
 const callClaude = async (body) => {
   try {
-    const res = await fetch("/api/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const res = await fetch("/api/claude", { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(body) });
     if (!res.ok) throw new Error();
     return await res.json();
   } catch { return null; }
 };
 
-const generateSubgoals    = async (goalTitle, userLevel, profile, narrative) => { const data = await callClaude({ type: "goal_plan", goal: goalTitle, levelId: userLevel, levelName: LEVELS.find(l => l.id === userLevel)?.name, employmentType: profile.employment_type, hasDebts: profile.has_debts, hasSavings: profile.has_savings, narrative }); return data?.questions || ["Definir un primer paso concreto hacia esta meta", "Identificar el principal obstáculo actual", "Buscar consejo de alguien que ya lo logró", "Aplicar un principio bíblico específico a esta meta", "Medir el avance con un indicador concreto"]; };
-const getDayConclusion    = async (reflections, pct) => { const data = await callClaude({ type: "day_conclusion", reflections, pct }); return data?.conclusion || getFallbackConclusion(pct); };
-const getWeekAnalysis     = async (weekData, areaStats, streak, avgPct) => { const data = await callClaude({ type: "week_analysis", weekData, areaStats, streak, avgPct }); return data?.analysis || null; };
-const getGracePlan        = async (reflection, graceType) => { const data = await callClaude({ type: "grace_plan", reflection, graceType }); return data?.plan || ["Día 1: Un solo check-in completo, sin presión", "Día 2: Enfócate en un principio que domines", "Día 3: Vuelve a tu rutina completa con gracia"]; };
-const analyzeGoalProgress = async (goalTitle, subgoals, recentReflections) => { const data = await callClaude({ type: "goal_progress", goalTitle, subgoals, recentReflections }); return data?.progress || []; };
-
-// ── STYLES ────────────────────────────────────────────────────────────────────
+// CSS shortcuts
 const css = {
-  card:       { background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "18px 20px", marginBottom: 12 },
-  label:      { fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: T.textMuted, marginBottom: 6, display: "block" },
-  input:      { width: "100%", background: T.bg, border: `1.5px solid ${T.border}`, borderRadius: 8, padding: "11px 14px", color: T.text, fontSize: 14, fontFamily: "Georgia, serif", outline: "none", boxSizing: "border-box" },
-  btnPrimary: { width: "100%", padding: "14px", background: T.accent, border: "none", borderRadius: 10, color: "#FFF", fontSize: 14, fontWeight: 700, cursor: "pointer" },
-  btnOutline: { padding: "10px 16px", background: "transparent", border: `1.5px solid ${T.borderStrong}`, borderRadius: 8, color: T.textMid, fontSize: 13, cursor: "pointer" },
+  btn:     (bg, color, extra={}) => ({ width:"100%", padding:"16px", background:bg, border:"none", borderRadius:14, color, fontSize:15, fontFamily:D, fontWeight:700, cursor:"pointer", transition:"all 0.2s", ...extra }),
+  btnOut:  (color, extra={})     => ({ padding:"12px 20px", background:"transparent", border:`1.5px solid ${C.stroke}`, borderRadius:12, color, fontSize:13, fontFamily:B, cursor:"pointer", ...extra }),
+  card:    (extra={})            => ({ background:C.surface, borderRadius:18, border:`1px solid ${C.stroke}`, boxShadow:"0 2px 16px rgba(0,0,0,0.05)", ...extra }),
+  label:   (color=C.inkFaint)    => ({ fontSize:10, fontFamily:D, fontWeight:700, letterSpacing:"0.15em", textTransform:"uppercase", color, display:"block", marginBottom:8 }),
 };
 
-const conclusionColors = { excellent: T.accent, good: T.accentMid, building: "#8B6914", restart: "#8A2D2D" };
-
-// ── COMPONENT ─────────────────────────────────────────────────────────────────
-export default function App() {
-  const [appStage, setAppStage]         = useState("loading");
-  const [welcomeScreen, setWelcomeScreen] = useState(0);
-  const [obStep, setObStep]             = useState(0);
-  const [obAnswers, setObAnswers]       = useState({});
-  const [narrative, setNarrative]       = useState("");
-  const [narrativeStep, setNarrativeStep] = useState(false);
-
-  const [tab, setTab]                   = useState("checkin");
-  const [checkins, setCheckins]         = useState({});
-  const [goals, setGoals]               = useState([]);
-  const [tithes, setTithes]             = useState([]);
-  const [userLevel, setUserLevel]       = useState(1);
-  const [profile, setProfile]           = useState({});
-  const [narrativeSaved, setNarrativeSaved] = useState("");
-  const [streak, setStreak]             = useState(0);
-  const [loaded, setLoaded]             = useState(false);
-  const [expanded, setExpanded]         = useState(null);
-
-  // Day close
-  const [showDayResult, setShowDayResult] = useState(false);
-  const [dayResultLoading, setDayResultLoading] = useState(false);
-  const [dayResult, setDayResult]         = useState(null);
-
-  // Close day (after 6pm)
-  const [showCloseDay, setShowCloseDay]   = useState(false);
-  const [closingDay, setClosingDay]       = useState(false);
-  const [dayNote, setDayNote]             = useState("");
-  const [after6pm, setAfter6pm]           = useState(isAfter6pm());
-
-  // Goals
-  const [showGoalForm, setShowGoalForm]   = useState(false);
-  const [newGoalTitle, setNewGoalTitle]   = useState("");
-  const [subgoals, setSubgoals]           = useState([]);
-  const [aiLoading, setAiLoading]         = useState(false);
-  const [goalStep, setGoalStep]           = useState("form");
-  const [expandedGoal, setExpandedGoal]   = useState(null);
-
-  // Progress week analysis
-  const [weekAnalysis, setWeekAnalysis]   = useState(null);
-  const [analysisLoading, setAnalysisLoading] = useState(false);
-  const [analysisFetched, setAnalysisFetched] = useState(false);
-
-  // Grace
-  const [showGrace, setShowGrace]             = useState(false);
-  const [graceType, setGraceType]             = useState("streak");
-  const [graceReflection, setGraceReflection] = useState("");
-  const [gracePlan, setGracePlan]             = useState([]);
-  const [graceStep, setGraceStep]             = useState("message");
-
-  // Tithe / cert
-  const [showTitheModal, setShowTitheModal] = useState(false);
-  const [showCertPrompt, setShowCertPrompt] = useState(false);
-
-  // Load
+// ── WELCOME SCREENS ───────────────────────────────────────────────────────────
+function WelcomeScreen({ screen, onNext, onBack }) {
+  const [step, setStep] = useState(0);
   useEffect(() => {
-    const ob = lsGet("onboarded", false);
-    setCheckins(lsGet("checkins", {}));
-    setGoals(lsGet("goals", []));
-    setTithes(lsGet("tithes", []));
-    setUserLevel(lsGet("userLevel", 1));
-    setProfile(lsGet("profile", {}));
-    setNarrativeSaved(lsGet("narrative", ""));
-    setLoaded(true);
-    setAppStage(ob ? "app" : "welcome");
+    const t = [setTimeout(()=>setStep(1),80), setTimeout(()=>setStep(2),500), setTimeout(()=>setStep(3),900), setTimeout(()=>setStep(4),1300)];
+    return () => t.forEach(clearTimeout);
+  }, [screen]);
+
+  const isFirst = screen === 0;
+
+  return (
+    <div style={{ minHeight:"100%", background:C.bg, display:"flex", flexDirection:"column", padding:"0 22px 32px", position:"relative", overflow:"hidden" }}>
+      <div style={{ position:"absolute", top:-60, right:-60, width:220, height:220, borderRadius:"50%", background:`radial-gradient(circle, ${C.primaryGlow} 0%, transparent 70%)`, pointerEvents:"none" }} />
+
+      {/* Dots */}
+      {step >= 1 && (
+        <div className="reveal" style={{ paddingTop:52, display:"flex", justifyContent:"center", gap:6, marginBottom:36 }}>
+          {[0,1].map(i => <div key={i} style={{ width: i === screen ? 22 : 8, height:8, borderRadius:4, background: i === screen ? C.primary : C.warm, transition:"all 0.3s" }} />)}
+        </div>
+      )}
+
+      {isFirst ? (
+        <>
+          {step >= 1 && (
+            <div className="reveal d1" style={{ marginBottom:24 }}>
+              <div style={{ fontSize:10, fontFamily:D, fontWeight:700, letterSpacing:"0.2em", textTransform:"uppercase", color:C.primary, marginBottom:10 }}>Prospera en Todo</div>
+              <h1 style={{ fontSize:30, fontFamily:D, fontWeight:800, color:C.ink, lineHeight:1.2, marginBottom:14 }}>No eres pobre porque Dios quiere que lo seas.</h1>
+              <p style={{ fontSize:15, fontFamily:B, color:C.inkMid, lineHeight:1.75 }}>
+                La Biblia no llama a los creyentes a ser pobres. Los llama a ser mayordomos. Y un mayordomo necesita recursos para cumplir su mandato.
+              </p>
+            </div>
+          )}
+          {step >= 2 && (
+            <div className="reveal d1" style={{ background:C.primaryLight, borderRadius:16, padding:"16px 18px", marginBottom:14, border:`1px solid ${C.primary}20` }}>
+              <p style={{ fontSize:14, fontFamily:B, color:C.inkMid, lineHeight:1.75 }}>
+                No puedes dar al necesitado si eres el necesitado. No puedes financiar visiones si no tienes excedente. <strong style={{ color:C.primary }}>La prosperidad no es orgullo — es herramienta.</strong>
+              </p>
+            </div>
+          )}
+          {step >= 3 && (
+            <div className="reveal d2" style={{ background:C.surface, borderRadius:16, padding:"16px 18px", marginBottom:14, border:`1px solid ${C.stroke}`, borderLeft:`4px solid ${C.primary}` }}>
+              <p style={{ fontSize:13, fontFamily:B, fontStyle:"italic", color:C.inkMid, lineHeight:1.75, marginBottom:6 }}>"Amado, deseo que seas prosperado en todo así como prospera tu alma, y que tengas buena salud."</p>
+              <div style={{ fontSize:11, fontFamily:D, fontWeight:700, color:C.inkFaint }}>— 3 Juan 1:2</div>
+            </div>
+          )}
+          {step >= 4 && (
+            <div className="reveal d3" style={{ marginTop:"auto" }}>
+              <p style={{ fontSize:12, fontFamily:B, color:C.inkFaint, textAlign:"center", marginBottom:16, lineHeight:1.6 }}>Esta app es un espejo. Te mostrará si lo que haces cada día es consistente con lo que dices querer.</p>
+              <button onClick={onNext} style={{ ...css.btn(C.primary, "#FFF"), display:"flex", justifyContent:"space-between", alignItems:"center", boxShadow:`0 8px 24px ${C.primaryGlow}` }}>
+                <span>Siguiente</span><span style={{ fontSize:20 }}>→</span>
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {step >= 1 && (
+            <div className="reveal d1" style={{ marginBottom:22 }}>
+              <div style={{ fontSize:10, fontFamily:D, fontWeight:700, letterSpacing:"0.2em", textTransform:"uppercase", color:C.primary, marginBottom:10 }}>¿Cómo funciona?</div>
+              <h2 style={{ fontSize:26, fontFamily:D, fontWeight:800, color:C.ink, lineHeight:1.2, marginBottom:6 }}>Cuatro herramientas, un propósito.</h2>
+            </div>
+          )}
+          {step >= 2 && (
+            <div className="reveal d1" style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:24 }}>
+              {[
+                { icon:"✦", name:"Check-in",  desc:"Tu rutina diaria. Una pregunta a la vez, conectada a tu meta. Escribe tu reflexión — ese es el corazón de todo." },
+                { icon:"◈", name:"Progreso",  desc:"Ve cómo avanzas en 7 días. La IA interpreta tus números y te dice qué significan." },
+                { icon:"◉", name:"Historial", desc:"El registro completo de tu camino. Cada día queda guardado con su conclusión." },
+              ].map((t,i) => (
+                <div key={i} style={{ ...css.card(), padding:"13px 16px", display:"flex", gap:12, alignItems:"flex-start" }}>
+                  <div style={{ width:34, height:34, borderRadius:10, background:C.primaryLight, display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, color:C.primary, flexShrink:0 }}>{t.icon}</div>
+                  <div>
+                    <div style={{ fontSize:13, fontFamily:D, fontWeight:700, color:C.ink, marginBottom:3 }}>{t.name}</div>
+                    <div style={{ fontSize:12, fontFamily:B, color:C.inkMute, lineHeight:1.6 }}>{t.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {step >= 3 && (
+            <div className="reveal d2" style={{ background:C.primaryLight, borderRadius:14, padding:"13px 16px", marginBottom:24, border:`1px solid ${C.primary}20` }}>
+              <p style={{ fontSize:13, fontFamily:B, color:C.inkMid, lineHeight:1.7 }}>
+                Tu meta principal guía todo. El check-in diario mide si estás siendo consistente con lo que dijiste querer.
+              </p>
+            </div>
+          )}
+          {step >= 4 && (
+            <div className="reveal d3" style={{ marginTop:"auto", display:"flex", flexDirection:"column", gap:10 }}>
+              <button onClick={onNext} style={{ ...css.btn(C.primary, "#FFF"), display:"flex", justifyContent:"space-between", alignItems:"center", boxShadow:`0 8px 24px ${C.primaryGlow}` }}>
+                <span>Comenzar mi perfil</span><span style={{ fontSize:20 }}>→</span>
+              </button>
+              <button onClick={onBack} style={{ ...css.btnOut(C.inkMute), textAlign:"center" }}>← Anterior</button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── GOAL SCREEN ───────────────────────────────────────────────────────────────
+function GoalScreen({ onNext, onBack }) {
+  const [goal, setGoal]         = useState("");
+  const [timeframe, setTimeframe] = useState("");
+  const MIN = 150;
+  const ready = goal.length >= MIN && timeframe;
+
+  return (
+    <div style={{ minHeight:"100%", background:C.bg, display:"flex", flexDirection:"column", padding:"0 22px 32px", overflow:"auto" }}>
+      <div style={{ paddingTop:48, marginBottom:28 }}>
+        <div className="reveal" style={{ fontSize:10, fontFamily:D, fontWeight:700, letterSpacing:"0.2em", textTransform:"uppercase", color:C.primary, marginBottom:8 }}>Tu punto de partida</div>
+        <h2 className="reveal d1" style={{ fontSize:26, fontFamily:D, fontWeight:800, color:C.ink, lineHeight:1.2, marginBottom:14 }}>¿Cuál es tu meta?</h2>
+        <div className="reveal d2" style={{ background:C.primaryLight, borderRadius:14, padding:"14px 16px", border:`1px solid ${C.primary}20` }}>
+          <p style={{ fontSize:13, fontFamily:B, color:C.inkMid, lineHeight:1.75 }}>
+            Una meta real no es solo un deseo — es una dirección con propósito. No importa si es grande o pequeña. Lo que importa es que sea honesta: ¿qué quieres que cambie en tu vida? ¿Para qué? ¿Qué diferencia haría lograrlo?
+          </p>
+        </div>
+      </div>
+
+      <div className="reveal d2" style={{ marginBottom:16 }}>
+        <span style={css.label()}>Escribe tu meta</span>
+        <textarea
+          value={goal}
+          onChange={e => setGoal(e.target.value)}
+          placeholder="Describe lo que quieres lograr. Puedes hablar de tu situación actual, por qué quieres cambiarla, qué significaría para ti y para los tuyos..."
+          style={{ width:"100%", background:C.surface, border:`1.5px solid ${goal.length >= MIN ? C.primary : C.stroke}`, borderRadius:14, padding:"14px 16px", color:C.ink, fontSize:14, fontFamily:B, resize:"none", height:160, lineHeight:1.7, boxSizing:"border-box", transition:"border-color 0.3s", outline:"none" }}
+        />
+        <div style={{ display:"flex", justifyContent:"space-between", marginTop:6 }}>
+          <span style={{ fontSize:11, fontFamily:B, color: goal.length >= MIN ? C.primary : C.inkFaint }}>
+            {goal.length >= MIN ? "✓ Suficiente para continuar" : `${MIN - goal.length} caracteres más`}
+          </span>
+          <span style={{ fontSize:11, fontFamily:D, fontWeight:600, color: goal.length >= MIN ? C.primary : C.inkFaint }}>{goal.length}/{MIN}</span>
+        </div>
+      </div>
+
+      <div className="reveal d3" style={{ marginBottom:28 }}>
+        <span style={css.label()}>¿En cuánto tiempo esperas lograrlo?</span>
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          {GOAL_TIMEFRAMES.map(t => {
+            const sel = timeframe === t.value;
+            return (
+              <button key={t.value} onClick={() => setTimeframe(t.value)} style={{ padding:"12px 16px", background: sel ? C.primaryLight : C.surface, border:`1.5px solid ${sel ? C.primary : C.stroke}`, borderRadius:12, color: sel ? C.primary : C.inkMid, fontSize:13, fontFamily:D, fontWeight: sel ? 700 : 400, cursor:"pointer", textAlign:"left", transition:"all 0.2s" }}>
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="reveal d4" style={{ display:"flex", flexDirection:"column", gap:10 }}>
+        <button onClick={() => onNext({ goal, timeframe })} disabled={!ready} style={{ ...css.btn(ready ? C.primary : C.warm, ready ? "#FFF" : C.inkFaint), opacity: ready ? 1 : 0.6, cursor: ready ? "pointer" : "not-allowed", display:"flex", justifyContent:"space-between", alignItems:"center", boxShadow: ready ? `0 8px 24px ${C.primaryGlow}` : "none" }}>
+          <span>Continuar</span><span style={{ fontSize:20 }}>→</span>
+        </button>
+        <button onClick={onBack} style={{ ...css.btnOut(C.inkMute), textAlign:"center" }}>← Anterior</button>
+      </div>
+    </div>
+  );
+}
+
+// ── MINDSET QUESTIONS ─────────────────────────────────────────────────────────
+function MindsetScreen({ onNext, onBack }) {
+  const [idx, setIdx]           = useState(0);
+  const [answers, setAnswers]   = useState({});
+  const current  = MINDSET_QUESTIONS[idx];
+  const isLast   = idx === MINDSET_QUESTIONS.length - 1;
+  const progress = Math.round(((idx) / MINDSET_QUESTIONS.length) * 100);
+
+  const choose = (value) => {
+    const next = { ...answers, [current.id]: value };
+    setAnswers(next);
+    if (isLast) setTimeout(() => onNext(next), 250);
+    else setTimeout(() => setIdx(i => i+1), 250);
+  };
+
+  return (
+    <div key={idx} style={{ minHeight:"100%", background:C.bg, display:"flex", flexDirection:"column", padding:"0 22px 32px" }}>
+      <div style={{ paddingTop:48, marginBottom:28 }}>
+        <div className="reveal" style={{ fontSize:10, fontFamily:D, fontWeight:700, letterSpacing:"0.2em", textTransform:"uppercase", color:C.amber, marginBottom:8 }}>Tu relación con el dinero</div>
+        <div style={{ height:5, background:C.warm, borderRadius:3, overflow:"hidden", marginBottom:8 }}>
+          <div style={{ height:"100%", width:`${progress}%`, background:C.amber, borderRadius:3, transition:"width 0.4s" }} />
+        </div>
+        <div style={{ fontSize:11, fontFamily:B, color:C.inkFaint, marginBottom:24 }}>{idx + 1} de {MINDSET_QUESTIONS.length}</div>
+        <h3 className="reveal d1" style={{ fontSize:20, fontFamily:D, fontWeight:700, color:C.ink, lineHeight:1.45 }}>{current.q}</h3>
+      </div>
+
+      <div className="reveal d2" style={{ display:"flex", flexDirection:"column", gap:10, flex:1 }}>
+        {current.opts.map(opt => {
+          const sel = answers[current.id] === opt.value;
+          return (
+            <button key={opt.value} onClick={() => choose(opt.value)} style={{ padding:"14px 16px", background: sel ? C.amberLight : C.surface, border:`1.5px solid ${sel ? C.amber : C.stroke}`, borderRadius:12, color: sel ? C.amber : C.inkMid, fontSize:13, fontFamily: sel ? D : B, fontWeight: sel ? 700 : 400, cursor:"pointer", textAlign:"left", transition:"all 0.2s" }}>
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ marginTop:20, display:"flex", gap:10 }}>
+        {idx > 0 && <button onClick={() => setIdx(i => i-1)} style={{ ...css.btnOut(C.inkMute), flex:1, textAlign:"center" }}>← Anterior</button>}
+        {idx === 0 && <button onClick={onBack} style={{ ...css.btnOut(C.inkMute), flex:1, textAlign:"center" }}>← Atrás</button>}
+      </div>
+    </div>
+  );
+}
+
+// ── SITUATION QUESTIONS ───────────────────────────────────────────────────────
+function SituationScreen({ onNext, onBack }) {
+  const [idx, setIdx]         = useState(0);
+  const [answers, setAnswers] = useState({});
+  const current  = SITUATION_QUESTIONS[idx];
+  const isLast   = idx === SITUATION_QUESTIONS.length - 1;
+  const progress = Math.round((idx / SITUATION_QUESTIONS.length) * 100);
+
+  const choose = (value) => {
+    const next = { ...answers, [current.id]: value };
+    setAnswers(next);
+    if (isLast) setTimeout(() => onNext(next), 250);
+    else setTimeout(() => setIdx(i => i+1), 250);
+  };
+
+  return (
+    <div key={idx} style={{ minHeight:"100%", background:C.bg, display:"flex", flexDirection:"column", padding:"0 22px 32px" }}>
+      <div style={{ paddingTop:48, marginBottom:28 }}>
+        <div className="reveal" style={{ fontSize:10, fontFamily:D, fontWeight:700, letterSpacing:"0.2em", textTransform:"uppercase", color:C.primary, marginBottom:8 }}>Tu situación actual</div>
+        <div style={{ height:5, background:C.warm, borderRadius:3, overflow:"hidden", marginBottom:8 }}>
+          <div style={{ height:"100%", width:`${progress}%`, background:C.primary, borderRadius:3, transition:"width 0.4s" }} />
+        </div>
+        <div style={{ fontSize:11, fontFamily:B, color:C.inkFaint, marginBottom:24 }}>{idx + 1} de {SITUATION_QUESTIONS.length}</div>
+        <h3 className="reveal d1" style={{ fontSize:20, fontFamily:D, fontWeight:700, color:C.ink, lineHeight:1.45 }}>{current.q}</h3>
+      </div>
+
+      <div className="reveal d2" style={{ display:"flex", flexDirection:"column", gap:10, flex:1 }}>
+        {current.opts.map(opt => {
+          const sel = answers[current.id] === opt.value;
+          return (
+            <button key={opt.value} onClick={() => choose(opt.value)} style={{ padding:"13px 16px", background: sel ? C.primaryLight : C.surface, border:`1.5px solid ${sel ? C.primary : C.stroke}`, borderRadius:12, color: sel ? C.primary : C.inkMid, fontSize:13, fontFamily: sel ? D : B, fontWeight: sel ? 700 : 400, cursor:"pointer", textAlign:"left", transition:"all 0.2s" }}>
+              <div>{opt.label}</div>
+              {opt.desc && <div style={{ fontSize:11, color: sel ? C.primaryMid : C.inkFaint, marginTop:2 }}>{opt.desc}</div>}
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ marginTop:20 }}>
+        <button onClick={() => idx > 0 ? setIdx(i => i-1) : onBack()} style={{ ...css.btnOut(C.inkMute), width:"100%", textAlign:"center" }}>← Anterior</button>
+      </div>
+    </div>
+  );
+}
+
+// ── RESULT SCREEN ─────────────────────────────────────────────────────────────
+function ResultScreen({ profile, onStart }) {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const t = [setTimeout(()=>setStep(1),200), setTimeout(()=>setStep(2),800), setTimeout(()=>setStep(3),1400)];
+    return () => t.forEach(clearTimeout);
   }, []);
 
-  // Streak + grace detection
+  const level = profile.level;
+  const lv    = C.levels[level];
+
+  const levelMessages = {
+    1: "Estás construyendo la base. Este es el paso más importante — sin fundamentos sólidos, nada más dura. Vamos a trabajar en la estabilidad primero.",
+    2: "Tienes una base. Ahora el trabajo es hacer que esa base produzca crecimiento real y sostenible. Hay más por construir.",
+    3: "Estás en un nivel avanzado. El siguiente desafío es pensar en legado — lo que construyes ahora durará más allá de ti.",
+  };
+
+  return (
+    <div style={{ minHeight:"100%", background:C.bg, display:"flex", flexDirection:"column", padding:"0 22px 32px" }}>
+      <div style={{ paddingTop:48, marginBottom:28 }}>
+        {step >= 1 && (
+          <div className="bounce" style={{ width:64, height:64, borderRadius:18, background:lv.bg, border:`2px solid ${lv.color}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28, marginBottom:20 }}>{lv.symbol}</div>
+        )}
+        {step >= 1 && <div className="reveal" style={{ fontSize:10, fontFamily:D, fontWeight:700, letterSpacing:"0.2em", textTransform:"uppercase", color:lv.color, marginBottom:6 }}>Tu punto de partida</div>}
+        {step >= 1 && <h2 className="reveal d1" style={{ fontSize:28, fontFamily:D, fontWeight:800, color:C.ink, lineHeight:1.2, marginBottom:16 }}>Nivel {level} — {lv.name}</h2>}
+        {step >= 2 && (
+          <div className="reveal d1" style={{ background:C.surface, borderRadius:16, padding:"16px 18px", marginBottom:14, border:`1px solid ${C.stroke}` }}>
+            <p style={{ fontSize:14, fontFamily:B, color:C.inkMid, lineHeight:1.75 }}>{levelMessages[level]}</p>
+          </div>
+        )}
+        {step >= 2 && (
+          <div className="reveal d2" style={{ background:lv.bg, borderRadius:14, padding:"13px 16px", border:`1px solid ${lv.color}30`, marginBottom:14 }}>
+            <div style={{ fontSize:10, fontFamily:D, fontWeight:700, letterSpacing:"0.14em", textTransform:"uppercase", color:lv.color, marginBottom:6 }}>Tu meta</div>
+            <div style={{ fontSize:14, fontFamily:D, fontWeight:600, color:C.ink, lineHeight:1.4, marginBottom:6 }}>"{profile.goal?.goal?.substring(0,120)}..."</div>
+            <div style={{ fontSize:11, fontFamily:B, color:lv.color }}>Tiempo estimado: {GOAL_TIMEFRAMES.find(t => t.value === profile.goal?.timeframe)?.label}</div>
+          </div>
+        )}
+        {step >= 3 && (
+          <div className="reveal d2" style={{ background:C.primaryLight, borderRadius:14, padding:"13px 16px", marginBottom:28, border:`1px solid ${C.primary}20` }}>
+            <p style={{ fontSize:13, fontFamily:B, color:C.inkMid, lineHeight:1.7 }}>
+              Tu check-in diario estará conectado a esta meta y a tu nivel actual. La IA irá analizando tu progreso y ajustando el camino.
+            </p>
+          </div>
+        )}
+      </div>
+      {step >= 3 && (
+        <div className="reveal d3" style={{ marginTop:"auto" }}>
+          <button onClick={onStart} style={{ ...css.btn(C.primary, "#FFF"), display:"flex", justifyContent:"space-between", alignItems:"center", boxShadow:`0 8px 24px ${C.primaryGlow}` }}>
+            <span>Comenzar mi camino</span><span style={{ fontSize:20 }}>→</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── CHECK-IN ──────────────────────────────────────────────────────────────────
+function CheckinTab({ checkins, setCheckins, profile, tithes, setTithes }) {
+  const dayIdx = getDayIdx();
+  const [idx, setIdx]               = useState(0);
+  const [reflections, setReflections] = useState({});
+  const [currentRefl, setCurrentRefl] = useState("");
+  const [verseVisible, setVerseVisible] = useState(false);
+  const [reflVisible, setReflVisible]   = useState(false);
+  const [done, setDone]               = useState(false);
+  const [showResult, setShowResult]   = useState(false);
+  const [dayResult, setDayResult]     = useState(null);
+  const [resultLoading, setResultLoading] = useState(false);
+  const [showTithe, setShowTithe]     = useState(false);
+  const cardKey = useRef(0);
+
+  const principle    = PRINCIPLES[idx];
+  const area         = principle ? C.areas[principle.areaKey] : null;
+  const question     = principle ? principle.questions[dayIdx % principle.questions.length] : "";
+  const verse        = principle ? VERSE_BANKS[principle.id]?.[dayIdx % (VERSE_BANKS[principle.id]?.length || 1)] : null;
+  const td           = checkins[todayKey()] || {};
+  const doneCount    = PRINCIPLE_IDS.filter(id => td[id]?.done !== undefined).length;
+  const pct          = Math.round((doneCount / PRINCIPLES.length) * 100);
+  const titheInfo    = getTitheMessage(profile, tithes);
+  const tithesToday  = (tithes || []).filter(t => t.date === todayKey()).length > 0;
+
   useEffect(() => {
-    if (!loaded) return;
-    lsSet("checkins", checkins);
-    let s = 0, d = new Date();
-    while (true) {
-      const k = d.toISOString().split("T")[0];
-      const day = checkins[k];
-      if (!day || ALL_IDS.filter(id => day[id] !== undefined).length < ALL_IDS.length * 0.5) break;
-      s++; d.setDate(d.getDate() - 1);
-    }
-    setStreak(s);
-    // Only trigger grace if user has at least 3 days of history
-    if (Object.keys(checkins).length < 3) return;
-    const yest = new Date(); yest.setDate(yest.getDate() - 1);
-    const yk = yest.toISOString().split("T")[0];
-    const twoAgo = new Date(); twoAgo.setDate(twoAgo.getDate() - 2);
-    const tk = twoAgo.toISOString().split("T")[0];
-    const graceShown = lsGet("grace_shown", "");
-    if (!checkins[yk] && !checkins[tk] && graceShown !== todayKey()) {
-      setGraceType("streak"); setShowGrace(true); lsSet("grace_shown", todayKey());
-    }
-  }, [checkins, loaded]);
+    setVerseVisible(false); setReflVisible(false);
+    setCurrentRefl(reflections[principle?.id] || "");
+    const t1 = setTimeout(() => setVerseVisible(true), 650);
+    const t2 = setTimeout(() => setReflVisible(true), 1100);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [idx]);
 
-  useEffect(() => { if (loaded) lsSet("goals", goals); }, [goals, loaded]);
-  useEffect(() => { if (loaded) lsSet("tithes", tithes); }, [tithes, loaded]);
-  useEffect(() => { const i = setInterval(() => setAfter6pm(isAfter6pm()), 60000); return () => clearInterval(i); }, []);
-
-  // Computed
-  const td             = checkins[todayKey()] || {};
-  const doneToday      = ALL_IDS.filter(id => td[id]?.done === true).length;
-  const pctToday       = Math.round((doneToday / ALL_IDS.length) * 100);
-  const totalDays      = Object.keys(checkins).length;
-  const totalDone      = Object.values(checkins).reduce((a, d) => a + ALL_IDS.filter(id => d[id]?.done === true).length, 0);
-  const avgPct         = totalDays > 0 ? Math.round((totalDone / (totalDays * ALL_IDS.length)) * 100) : 0;
-  const last7          = getLast7();
-  const weekData       = last7.map(date => { const day = checkins[date] || {}; return { date, pct: Math.round((ALL_IDS.filter(id => day[id]?.done === true).length / ALL_IDS.length) * 100) }; });
-  const areaStats      = PRINCIPLES.map(area => { const ids = area.items.map(i => i.id); let tot = 0, sum = 0; last7.forEach(date => { const day = checkins[date] || {}; ids.forEach(id => { if (day[id]?.done !== undefined) { tot++; if (day[id]?.done) sum++; } }); }); return { ...area, pct: tot > 0 ? Math.round((sum / tot) * 100) : 0 }; });
-  const completedGoals = goals.filter(g => g.done).length;
-  const activeGoal     = goals.find(g => !g.done);
-  const currentLevel   = LEVELS.find(l => l.id === userLevel) || LEVELS[0];
-  const nextLevel      = LEVELS.find(l => l.id === userLevel + 1);
-  const certReady      = nextLevel && totalDays >= currentLevel.minDays && avgPct >= currentLevel.minPct && completedGoals >= currentLevel.minGoals;
-  const titheMessage   = getTitheMessage(profile, tithes);
-  const dayClosed      = !!td.closed;
-
-  // Handlers
   const setCheck = (id, val) => {
     setCheckins(p => ({ ...p, [todayKey()]: { ...p[todayKey()], [id]: { ...p[todayKey()]?.[id], done: val } } }));
-    // Fix: count failures correctly including the current action
-    const newFailCount = ALL_IDS.filter(id2 => id2 === id ? val === false : td[id2]?.done === false).length;
-    const graceShown = lsGet("grace_shown", "");
-    if (newFailCount >= 5 && graceShown !== todayKey()) {
-      setGraceType("discipline"); setShowGrace(true); lsSet("grace_shown", todayKey());
+  };
+
+  const answer = (val) => {
+    const saved = { ...reflections };
+    if (currentRefl.trim()) saved[principle.id] = currentRefl;
+    setReflections(saved);
+    setCheck(principle.id, val);
+    if (currentRefl.trim()) {
+      setCheckins(p => ({ ...p, [todayKey()]: { ...p[todayKey()], [principle.id]: { ...p[todayKey()]?.[principle.id], done: val, reflection: currentRefl } } }));
     }
+    setCurrentRefl(""); cardKey.current++;
+    setTimeout(() => {
+      if (idx < PRINCIPLES.length - 1) setIdx(i => i+1);
+      else setDone(true);
+    }, 280);
   };
 
-  const setRef      = (id, text) => setCheckins(p => ({ ...p, [todayKey()]: { ...p[todayKey()], [id]: { ...p[todayKey()]?.[id], reflection: text } } }));
-  const toggleDone  = (gid) => setGoals(p => p.map(g => g.id === gid ? { ...g, done: !g.done } : g));
-  const recordTithe = () => { setTithes(p => [...p, { date: todayKey() }]); setShowTitheModal(false); };
-
-  const handleVerMiFeedback = async () => {
-    setDayResultLoading(true);
-    setShowDayResult(true);
-    const reflections = ALL_IDS.filter(id => td[id]?.reflection).map(id => td[id].reflection).join(" | ");
-    const result = await getDayConclusion(reflections, pctToday);
-    setDayResult(result);
-    setDayResultLoading(false);
+  const handleVerResult = async () => {
+    setResultLoading(true); setShowResult(true);
+    const allReflections = Object.entries(reflections).map(([k,v]) => `${k}: ${v}`).join(" | ");
+    const data = await callClaude({ type:"day_conclusion", reflections: allReflections, pct });
+    setDayResult(data?.conclusion || {
+      message: pct >= 80 ? "Día de excelencia. Esto es lo que produce prosperidad real." : pct >= 50 ? "Buen día. Estás siendo fiel en lo poco." : "Hoy fue difícil. Mañana es un día nuevo — las misericordias de Dios son nuevas cada mañana.",
+      verse: pct >= 80 ? "Proverbios 22:29" : pct >= 50 ? "Lucas 16:10" : "Lamentaciones 3:22-23",
+      verseText: pct >= 80 ? "¿Has visto hombre solícito en su trabajo? Delante de los reyes estará." : pct >= 50 ? "El que es fiel en lo muy poco, también en lo más es fiel." : "Las misericordias del Señor nunca terminan, nuevas son cada mañana.",
+      level: pct >= 80 ? "excellent" : pct >= 50 ? "good" : "restart"
+    });
+    setResultLoading(false);
   };
 
-  const handleCloseDay = async () => {
-    setClosingDay(true);
-    const reflections = ALL_IDS.filter(id => td[id]?.reflection).map(id => td[id].reflection).join(" | ");
-    const conclusion = await getDayConclusion(reflections + (dayNote ? ` | Nota: ${dayNote}` : ""), pctToday);
-    setCheckins(p => ({ ...p, [todayKey()]: { ...p[todayKey()], closed: true, conclusion, dayNote } }));
-    setClosingDay(false);
-    setShowCloseDay(false);
-    setDayResult(conclusion);
-    setShowDayResult(true);
-  };
+  const resultColors = { excellent: C.primary, good: C.primaryMid, building: C.amber, restart: "#7A5800" };
 
-  const handleGoalSubgoals = async () => {
-    if (!newGoalTitle.trim()) return;
-    setAiLoading(true); setGoalStep("select");
-    const sg = await generateSubgoals(newGoalTitle, userLevel, profile, narrativeSaved);
-    setSubgoals(sg); setAiLoading(false);
-  };
-
-  const saveGoal = () => {
-    if (!newGoalTitle.trim() || subgoals.length === 0) return;
-    setGoals(p => [...p, { id: Date.now().toString(), title: newGoalTitle, subgoals: subgoals.map(s => ({ text: s, status: "pending", evidence: "" })), createdAt: todayKey(), done: false }]);
-    setNewGoalTitle(""); setSubgoals([]); setGoalStep("form"); setShowGoalForm(false);
-  };
-
-  const refreshGoalProgress = async (goal) => {
-    const recentRefs = Object.entries(checkins).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 7).flatMap(([date, day]) => ALL_IDS.filter(id => day[id]?.reflection).map(id => `${date}: ${day[id].reflection}`));
-    if (!recentRefs.length) return;
-    const progress = await analyzeGoalProgress(goal.title, goal.subgoals.map(s => s.text), recentRefs);
-    if (progress.length) setGoals(p => p.map(g => g.id !== goal.id ? g : { ...g, subgoals: g.subgoals.map((s, i) => { const f = progress.find(pr => pr.index === i); return f ? { ...s, status: f.status, evidence: f.evidence } : s; }) }));
-  };
-
-  const loadWeekAnalysis = async () => {
-    if (analysisFetched) return;
-    setAnalysisLoading(true); setAnalysisFetched(true);
-    const analysis = await getWeekAnalysis(weekData, areaStats.map(a => ({ area: a.area, pct: a.pct })), streak, avgPct);
-    setWeekAnalysis(analysis); setAnalysisLoading(false);
-  };
-
-  // Load analysis when switching to progreso tab
-  useEffect(() => {
-    if (tab === "progreso" && loaded && !analysisFetched) loadWeekAnalysis();
-  }, [tab, loaded]);
-
-  // ── ONBOARDING FINISH ─────────────────────────────────────────────────────────
-  const finishOnboarding = (answers) => {
-    const level = scoreToLevel(answers);
-    const ver   = VERSION_MAP[answers.bible_version] || "es-RVR1960";
-    setUserLevel(level); setProfile(answers); setNarrativeSaved(narrative);
-    lsSet("onboarded", true); lsSet("userLevel", level); lsSet("profile", answers); lsSet("narrative", narrative);
-    localStorage.setItem("bibleVersion", ver);
-    setAppStage("app");
-  };
-
-  // ── WELCOME ───────────────────────────────────────────────────────────────────
-  if (appStage === "welcome") {
-    const screen = WELCOME_SCREENS[welcomeScreen];
-    const isLast = welcomeScreen === WELCOME_SCREENS.length - 1;
-    return (
-      <div style={{ minHeight: "100vh", background: T.bg, fontFamily: "Georgia, serif", display: "flex", flexDirection: "column", padding: "0 18px" }}>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", maxWidth: 460, margin: "0 auto", width: "100%", padding: "40px 0" }}>
-          <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 36 }}>
-            {WELCOME_SCREENS.map((_, i) => <div key={i} style={{ width: i === welcomeScreen ? 20 : 7, height: 7, borderRadius: 4, background: i === welcomeScreen ? T.accent : T.border, transition: "all 0.3s" }} />)}
+  if (showResult) return (
+    <div style={{ minHeight:"100%", background:C.bg, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"0 22px" }}>
+      {resultLoading ? (
+        <div style={{ textAlign:"center" }}>
+          <div style={{ fontSize:32, marginBottom:16, color:C.primary }}>✦</div>
+          <div style={{ fontSize:14, fontFamily:B, color:C.inkMute }}>Analizando tu día...</div>
+        </div>
+      ) : dayResult ? (
+        <>
+          <div className="bounce" style={{ width:72, height:72, borderRadius:"50%", background: resultColors[dayResult.level] || C.primary, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28, color:"#FFF", marginBottom:22 }}>
+            {dayResult.level === "excellent" ? "✦" : dayResult.level === "good" ? "◈" : "○"}
           </div>
-          <div style={{ textAlign: "center", marginBottom: 28 }}>
-            <div style={{ fontSize: 36, marginBottom: 12, color: T.accent }}>{screen.icon}</div>
-            <h1 style={{ fontSize: 24, fontWeight: "normal", color: T.text, margin: "0 0 6px", lineHeight: 1.3 }}>{screen.title}</h1>
-            <p style={{ fontSize: 13, color: T.textMuted, fontStyle: "italic", margin: 0 }}>{screen.subtitle}</p>
+          <div className="reveal d1" style={{ fontSize:36, fontFamily:D, fontWeight:800, color: resultColors[dayResult.level], marginBottom:4, textAlign:"center" }}>{pct}%</div>
+          <div className="reveal d1" style={{ fontSize:13, fontFamily:B, color:C.inkMute, marginBottom:24 }}>{doneCount} de {PRINCIPLES.length} principios hoy</div>
+          <div className="reveal d2" style={{ ...css.card(), padding:"18px 20px", marginBottom:24, borderLeft:`4px solid ${resultColors[dayResult.level]}`, borderRadius:"0 14px 14px 0", width:"100%" }}>
+            <p style={{ fontSize:15, fontFamily:D, fontWeight:600, color:C.ink, lineHeight:1.65, marginBottom:12 }}>{dayResult.message}</p>
+            <p style={{ fontSize:12, fontFamily:B, fontStyle:"italic", color:C.inkMute, lineHeight:1.6, marginBottom:4 }}>"{dayResult.verseText}"</p>
+            <div style={{ fontSize:11, fontFamily:D, fontWeight:700, color:C.inkFaint }}>— {dayResult.verse}</div>
           </div>
-          {screen.body && (
-            <>
-              <div style={{ fontSize: 14, color: T.textMid, lineHeight: 1.85, marginBottom: 20, whiteSpace: "pre-line" }}>{screen.body}</div>
-              <div style={{ background: T.accentLight, borderLeft: `4px solid ${T.accent}`, borderRadius: "0 10px 10px 0", padding: "12px 16px" }}>
-                <div style={{ fontSize: 13, color: T.text, fontStyle: "italic", lineHeight: 1.7, marginBottom: 5 }}>"{screen.verse.text}"</div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: T.accentMid }}>— {screen.verse.ref}</div>
-              </div>
-            </>
-          )}
-          {screen.tabs && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {screen.tabs.map((t, i) => (
-                <div key={i} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "14px 16px", display: "flex", gap: 12, alignItems: "flex-start" }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: T.accentLight, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: T.accent, flexShrink: 0 }}>{t.icon}</div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 3 }}>{t.name}</div>
-                    <div style={{ fontSize: 12, color: T.textMuted, lineHeight: 1.6 }}>{t.desc}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <div style={{ maxWidth: 460, margin: "0 auto", width: "100%", paddingBottom: 40 }}>
-          <button onClick={() => { if (isLast) setAppStage("onboarding"); else setWelcomeScreen(s => s + 1); }} style={css.btnPrimary}>{isLast ? "Comenzar mi perfil →" : "Siguiente →"}</button>
-          {welcomeScreen > 0 && <button onClick={() => setWelcomeScreen(s => s - 1)} style={{ ...css.btnOutline, width: "100%", marginTop: 10, textAlign: "center" }}>← Anterior</button>}
-        </div>
-      </div>
-    );
-  }
-
-  // ── ONBOARDING ────────────────────────────────────────────────────────────────
-  if (appStage === "onboarding") {
-    const currentSteps = OB_STEPS.filter(s => !s.conditional || obAnswers[s.conditional.key] === s.conditional.value);
-
-    if (narrativeStep) {
-      const charCount = narrative.length;
-      const isReady   = charCount >= MIN_NARRATIVE;
-      return (
-        <div style={{ minHeight: "100vh", background: T.bg, fontFamily: "Georgia, serif", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 18px" }}>
-          <div style={{ maxWidth: 460, width: "100%" }}>
-            <div style={{ textAlign: "center", marginBottom: 24 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.22em", color: T.accent, textTransform: "uppercase", marginBottom: 6 }}>Último paso</div>
-              <h2 style={{ fontSize: 20, fontWeight: "normal", color: T.text, margin: "0 0 8px" }}>Cuéntanos sobre ti</h2>
-            </div>
-            <div style={{ background: T.accentLight, border: `1px solid ${T.accent}30`, borderRadius: 10, padding: "14px 16px", marginBottom: 16 }}>
-              <div style={{ fontSize: 13, color: T.accentMid, lineHeight: 1.8 }}>
-                Escribe libremente sobre cualquiera de estas cosas:<br /><br />
-                ¿En qué crees? ¿Cómo ha sido tu relación con el dinero hasta ahora? ¿Qué has intentado antes para mejorar tu situación? ¿Qué sueñas lograr? ¿Qué sientes que te ha frenado?<br /><br />
-                <span style={{ fontStyle: "italic", opacity: 0.8 }}>No hay respuestas correctas ni incorrectas. Escribe libremente — esto es solo entre tú y Dios.</span>
-              </div>
-            </div>
-            <textarea value={narrative} onChange={e => setNarrative(e.target.value)} placeholder="Escribe aquí tu historia..." style={{ ...css.input, resize: "vertical", minHeight: 200, lineHeight: 1.8, marginBottom: 8 }} />
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-              <span style={{ fontSize: 11, color: isReady ? T.accentMid : T.textMuted }}>{charCount} / {MIN_NARRATIVE} caracteres {isReady ? "✓" : "mínimo"}</span>
-              {!isReady && <span style={{ fontSize: 11, color: T.textMuted }}>{MIN_NARRATIVE - charCount} restantes</span>}
-            </div>
-            <button onClick={() => finishOnboarding(obAnswers)} disabled={!isReady} style={{ ...css.btnPrimary, opacity: isReady ? 1 : 0.4, cursor: isReady ? "pointer" : "not-allowed" }}>Comenzar mi camino →</button>
-            <button onClick={() => setNarrativeStep(false)} style={{ ...css.btnOutline, width: "100%", marginTop: 10, textAlign: "center" }}>← Anterior</button>
-          </div>
-        </div>
-      );
-    }
-
-    const q = currentSteps[obStep];
-    if (!q) { setNarrativeStep(true); return null; }
-    const isLast = obStep === currentSteps.length - 1;
-
-    return (
-      <div style={{ minHeight: "100vh", background: T.bg, fontFamily: "Georgia, serif", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 18px" }}>
-        <div style={{ maxWidth: 460, width: "100%" }}>
-          <div style={{ textAlign: "center", marginBottom: 28 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.22em", color: T.accent, textTransform: "uppercase", marginBottom: 6 }}>Configura tu perfil</div>
-            <p style={{ fontSize: 13, color: T.textMuted, fontStyle: "italic", margin: 0 }}>Personalicemos tu camino hacia la prosperidad</p>
-          </div>
-          <div style={{ display: "flex", gap: 4, marginBottom: 28 }}>
-            {[...currentSteps, { id: "narrative" }].map((_, i) => <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i <= obStep ? T.accent : T.border, transition: "background 0.3s" }} />)}
-          </div>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: T.textMuted, marginBottom: 10 }}>{obStep + 1} de {currentSteps.length + 1}</div>
-          <div style={{ fontSize: 19, color: T.text, marginBottom: 22, lineHeight: 1.5 }}>{q.q}</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {q.opts.map((opt, i) => {
-              const sel = obAnswers[q.id] === i;
-              return (
-                <button key={i} onClick={() => { const next = { ...obAnswers, [q.id]: i }; setObAnswers(next); if (isLast) setTimeout(() => setNarrativeStep(true), 200); else setTimeout(() => setObStep(s => s + 1), 200); }} style={{ padding: "14px 16px", background: sel ? T.accentLight : T.surface, border: `1.5px solid ${sel ? T.accent : T.border}`, borderRadius: 10, color: sel ? T.accent : T.textMid, fontSize: 14, cursor: "pointer", textAlign: "left", fontFamily: "Georgia, serif", fontWeight: sel ? 700 : "normal", transition: "all 0.18s" }}>
-                  <div>{opt.label}</div>
-                  {opt.desc && <div style={{ fontSize: 11, color: sel ? T.accentMid : T.textFaint, marginTop: 3 }}>{opt.desc}</div>}
-                </button>
-              );
-            })}
-          </div>
-          {obStep > 0 && <button onClick={() => setObStep(s => s - 1)} style={{ background: "none", border: "none", color: T.textMuted, cursor: "pointer", fontSize: 12, marginTop: 20, padding: 0 }}>← Anterior</button>}
-        </div>
-      </div>
-    );
-  }
-
-  // ── GRACE MODAL ───────────────────────────────────────────────────────────────
-  if (showGrace) {
-    const grace = GRACE_MESSAGES[graceType] || GRACE_MESSAGES.streak;
-    return (
-      <div style={{ minHeight: "100vh", background: T.bg, fontFamily: "Georgia, serif", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 18px" }}>
-        <div style={{ maxWidth: 460, width: "100%" }}>
-          {graceStep === "message" && (
-            <>
-              <div style={{ textAlign: "center", marginBottom: 24 }}>
-                <div style={{ fontSize: 36, marginBottom: 12 }}>🕊</div>
-                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.2em", color: T.accent, textTransform: "uppercase", marginBottom: 10 }}>Un momento para ti</div>
-                <div style={{ fontSize: 17, color: T.text, lineHeight: 1.7, marginBottom: 20 }}>{grace.message}</div>
-              </div>
-              <div style={{ background: T.accentLight, borderLeft: `4px solid ${T.accent}`, borderRadius: "0 10px 10px 0", padding: "14px 18px", marginBottom: 20 }}>
-                <div style={{ fontSize: 13, color: T.text, fontStyle: "italic", lineHeight: 1.8, marginBottom: 6 }}>"{grace.verseText}"</div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: T.accentMid }}>— {grace.verse}</div>
-              </div>
-              <div style={{ background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 10, padding: "14px 18px", marginBottom: 24, display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ width: 40, height: 40, borderRadius: "50%", background: T.accentLight, border: `2px solid ${T.accent}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>▶</div>
-                <div><div style={{ fontSize: 12, fontWeight: 700, color: T.text }}>Palabra del pastor</div><div style={{ fontSize: 11, color: T.textMuted }}>Mensaje de gracia para este momento</div></div>
-              </div>
-              <button onClick={() => setGraceStep("reflection")} style={css.btnPrimary}>Continuar →</button>
-              <button onClick={() => { setShowGrace(false); setGraceStep("message"); }} style={{ ...css.btnOutline, width: "100%", marginTop: 10, textAlign: "center" }}>Cerrar por ahora</button>
-            </>
-          )}
-          {graceStep === "reflection" && (
-            <>
-              <div style={{ fontSize: 17, color: T.text, marginBottom: 16, lineHeight: 1.6 }}>¿Qué pasó? Cuéntame sin filtros.</div>
-              <textarea value={graceReflection} onChange={e => setGraceReflection(e.target.value)} placeholder="Escribe lo que sientes..." style={{ ...css.input, resize: "vertical", minHeight: 120, lineHeight: 1.7, marginBottom: 16 }} />
-              <button onClick={async () => { if (!graceReflection.trim()) return; setGraceStep("plan"); const plan = await getGracePlan(graceReflection, graceType); setGracePlan(plan); }} style={{ ...css.btnPrimary, opacity: graceReflection.trim() ? 1 : 0.4, cursor: graceReflection.trim() ? "pointer" : "not-allowed" }}>Ver mi plan de 3 días →</button>
-            </>
-          )}
-          {graceStep === "plan" && (
-            <>
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.2em", color: T.accent, textTransform: "uppercase", marginBottom: 16 }}>Tu plan — próximos 3 días</div>
-              {gracePlan.length === 0 ? <div style={{ textAlign: "center", padding: "24px 0", color: T.textMuted }}>Preparando tu plan...</div> :
-                gracePlan.map((step, i) => (
-                  <div key={i} style={{ display: "flex", gap: 12, padding: "12px 0", borderBottom: `1px solid ${T.border}` }}>
-                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: T.accentLight, border: `2px solid ${T.accent}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: T.accent, flexShrink: 0 }}>{i + 1}</div>
-                    <div style={{ fontSize: 13, color: T.textMid, lineHeight: 1.6, paddingTop: 4 }}>{step}</div>
-                  </div>
-                ))
-              }
-              <button onClick={() => { setShowGrace(false); setGraceStep("message"); setGraceReflection(""); setGracePlan([]); }} style={{ ...css.btnPrimary, marginTop: 20 }}>¡Listo para continuar! →</button>
-            </>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // ── DAY RESULT MODAL ──────────────────────────────────────────────────────────
-  if (showDayResult) {
-    const color = dayResult ? conclusionColors[dayResult.level] : T.accent;
-    return (
-      <div style={{ minHeight: "100vh", background: T.bg, fontFamily: "Georgia, serif", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 18px" }}>
-        <div style={{ maxWidth: 460, width: "100%" }}>
-          {dayResultLoading ? (
-            <div style={{ textAlign: "center", padding: "48px 0" }}>
-              <div style={{ fontSize: 32, marginBottom: 12, color: T.accent }}>✦</div>
-              <div style={{ fontSize: 14, color: T.textMuted }}>Analizando tu día...</div>
-            </div>
-          ) : dayResult ? (
-            <>
-              <div style={{ textAlign: "center", marginBottom: 24 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.2em", color, textTransform: "uppercase", marginBottom: 8 }}>Tu día de hoy</div>
-                <div style={{ fontSize: 22, fontWeight: 700, color, marginBottom: 4 }}>{pctToday}%</div>
-                <div style={{ fontSize: 12, color: T.textMuted }}>{doneToday} de {ALL_IDS.length} principios</div>
-              </div>
-              <div style={{ background: T.surface, border: `1.5px solid ${color}40`, borderLeft: `4px solid ${color}`, borderRadius: "0 12px 12px 0", padding: "18px 20px", marginBottom: 20 }}>
-                <div style={{ fontSize: 15, color: T.text, lineHeight: 1.7, marginBottom: 14 }}>{dayResult.message}</div>
-                <div style={{ fontSize: 12, color: T.textMuted, fontStyle: "italic", lineHeight: 1.6 }}>"{dayResult.verseText}"</div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, marginTop: 4 }}>— {dayResult.verse}</div>
-              </div>
-              <button onClick={() => { setShowDayResult(false); setDayResult(null); }} style={css.btnPrimary}>Continuar →</button>
-            </>
-          ) : null}
-        </div>
-      </div>
-    );
-  }
-
-  // ── TITHE MODAL ───────────────────────────────────────────────────────────────
-  const TitheModal = () => (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={() => setShowTitheModal(false)}>
-      <div style={{ background: T.surface, borderRadius: "20px 20px 0 0", padding: "28px 24px 40px", width: "100%", maxWidth: 500 }} onClick={e => e.stopPropagation()}>
-        <div style={{ width: 40, height: 4, background: T.border, borderRadius: 2, margin: "0 auto 24px" }} />
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.2em", color: T.areas.Espiritual.color, textTransform: "uppercase", marginBottom: 6 }}>Reportar Diezmo</div>
-        <div style={{ fontSize: 16, color: T.text, marginBottom: 10, lineHeight: 1.6 }}>¿Diezmaste en este ciclo?</div>
-        <div style={{ fontSize: 12, color: T.textMuted, lineHeight: 1.6, marginBottom: 16 }}>El diezmo es el primer acto de fe financiera. No se trata de un monto — se trata de reconocer que Dios es el dueño de todo.</div>
-        <div style={{ background: T.areas.Espiritual.bg, borderLeft: `4px solid ${T.areas.Espiritual.color}`, borderRadius: "0 10px 10px 0", padding: "12px 16px", marginBottom: 20 }}>
-          <div style={{ fontSize: 12, color: T.textMid, lineHeight: 1.6, fontStyle: "italic" }}>{titheMessage}</div>
-        </div>
-        <button onClick={recordTithe} style={css.btnPrimary}>✓ Sí, diezmé</button>
-        <button onClick={() => setShowTitheModal(false)} style={{ ...css.btnOutline, width: "100%", marginTop: 10, textAlign: "center" }}>Aún no</button>
-      </div>
+          <button className="reveal d3" onClick={() => { setShowResult(false); setDone(false); setIdx(0); }} style={{ ...css.btn(C.primary, "#FFF"), boxShadow:`0 8px 24px ${C.primaryGlow}` }}>
+            Volver al inicio →
+          </button>
+        </>
+      ) : null}
     </div>
   );
 
-  // ── CLOSE DAY MODAL ───────────────────────────────────────────────────────────
-  const CloseDayModal = () => (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={() => setShowCloseDay(false)}>
-      <div style={{ background: T.surface, borderRadius: "20px 20px 0 0", padding: "28px 24px 40px", width: "100%", maxWidth: 500 }} onClick={e => e.stopPropagation()}>
-        <div style={{ width: 40, height: 4, background: T.border, borderRadius: 2, margin: "0 auto 24px" }} />
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.2em", color: T.accent, textTransform: "uppercase", marginBottom: 6 }}>Cerrar mi día</div>
-        <div style={{ fontSize: 14, color: T.textMid, lineHeight: 1.6, marginBottom: 16 }}>¿Quieres agregar una nota final antes de que la IA analice tu día completo?</div>
-        <textarea value={dayNote} onChange={e => setDayNote(e.target.value)} placeholder="Opcional — algo más que quieras añadir sobre tu día..." style={{ ...css.input, resize: "vertical", minHeight: 80, lineHeight: 1.7, marginBottom: 16 }} />
-        <button onClick={handleCloseDay} disabled={closingDay} style={{ ...css.btnPrimary, opacity: closingDay ? 0.6 : 1, cursor: closingDay ? "not-allowed" : "pointer" }}>
-          {closingDay ? "Analizando tu día..." : "Enviar y obtener conclusión →"}
-        </button>
-        <button onClick={() => setShowCloseDay(false)} style={{ ...css.btnOutline, width: "100%", marginTop: 10, textAlign: "center" }}>Cancelar</button>
-      </div>
+  if (done) return (
+    <div style={{ minHeight:"100%", background:C.bg, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"0 22px" }}>
+      <div className="bounce" style={{ width:72, height:72, borderRadius:"50%", background:C.primary, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28, color:"#FFF", marginBottom:22 }}>✦</div>
+      <div className="reveal d1" style={{ fontSize:28, fontFamily:D, fontWeight:800, color:C.ink, textAlign:"center", marginBottom:6, lineHeight:1.2 }}>Check-in<br />completado</div>
+      <div className="reveal d2" style={{ fontSize:40, fontFamily:D, fontWeight:800, color:C.primary, marginBottom:4 }}>{pct}%</div>
+      <div className="reveal d2" style={{ fontSize:13, fontFamily:B, color:C.inkMute, marginBottom:32 }}>{doneCount} de {PRINCIPLES.length} principios hoy</div>
+
+      {/* Tithe card at the end */}
+      {!tithesToday && (
+        <div className="reveal d2" style={{ ...css.card(), padding:"16px 18px", marginBottom:16, width:"100%", borderLeft:`4px solid ${C.areas.spirit.c}`, borderRadius:"0 14px 14px 0" }}>
+          <div style={{ fontSize:10, fontFamily:D, fontWeight:700, letterSpacing:"0.14em", textTransform:"uppercase", color:C.areas.spirit.c, marginBottom:6 }}>Diezmo</div>
+          <p style={{ fontSize:13, fontFamily:B, color:C.inkMid, lineHeight:1.6, marginBottom:12 }}>{titheInfo.msg}</p>
+          <button onClick={() => { setTithes(p => [...p, { date:todayKey() }]); }} style={{ ...css.btn(C.areas.spirit.bg, C.areas.spirit.c, { width:"auto", padding:"10px 18px", fontSize:12, boxShadow:"none", border:`1.5px solid ${C.areas.spirit.stroke}` }) }}>
+            ✓ Reportar diezmo
+          </button>
+        </div>
+      )}
+      {tithesToday && (
+        <div className="reveal d2" style={{ background:C.primaryLight, borderRadius:12, padding:"11px 16px", marginBottom:16, width:"100%", textAlign:"center" }}>
+          <span style={{ fontSize:13, fontFamily:D, fontWeight:700, color:C.primary }}>✦ Diezmo registrado hoy</span>
+        </div>
+      )}
+
+      <button className="reveal d3" onClick={handleVerResult} style={{ ...css.btn(C.primary, "#FFF"), marginBottom:10, boxShadow:`0 8px 24px ${C.primaryGlow}` }}>
+        Ver cómo me fue hoy →
+      </button>
+      <button className="reveal d4" onClick={() => { setIdx(0); setDone(false); }} style={{ ...css.btnOut(C.inkMute), width:"100%", textAlign:"center" }}>
+        Revisar respuestas
+      </button>
     </div>
   );
 
-  // ── MAIN APP ──────────────────────────────────────────────────────────────────
   return (
-    <div style={{ minHeight: "100vh", background: T.bg, color: T.text, fontFamily: "Georgia, serif", paddingBottom: 90 }}>
-      <div style={{ maxWidth: 600, margin: "0 auto", padding: "0 16px" }}>
-
-        {/* HEADER */}
-        <div style={{ padding: "26px 0 16px", borderBottom: `1px solid ${T.border}`, marginBottom: 18 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.22em", color: T.accent, textTransform: "uppercase", marginBottom: 3 }}>Prospera en Todo</div>
-              <div style={{ fontSize: 13, color: T.textMuted, fontStyle: "italic" }}>{fmt(todayKey())}</div>
-            </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              {certReady && <button onClick={() => setShowCertPrompt(true)} style={{ background: T.accentLight, border: `1.5px solid ${T.accent}`, borderRadius: 20, padding: "5px 12px", color: T.accent, fontSize: 10, fontWeight: 700, cursor: "pointer" }}>✦ Subir nivel</button>}
-              {after6pm && !dayClosed && <button onClick={() => setShowCloseDay(true)} style={{ background: T.surface, border: `1.5px solid ${T.border}`, borderRadius: 20, padding: "5px 12px", color: T.textMid, fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Cerrar mi día</button>}
-            </div>
-          </div>
-
-          {/* Day conclusion banner */}
-          {dayClosed && td.conclusion && (
-            <div style={{ background: T.accentLight, border: `1.5px solid ${conclusionColors[td.conclusion.level] || T.accent}40`, borderLeft: `4px solid ${conclusionColors[td.conclusion.level] || T.accent}`, borderRadius: "0 10px 10px 0", padding: "12px 16px", marginBottom: 12 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: conclusionColors[td.conclusion.level], letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Conclusión de hoy</div>
-              <div style={{ fontSize: 13, color: T.textMid, lineHeight: 1.6, marginBottom: 4 }}>{td.conclusion.message}</div>
-              <div style={{ fontSize: 11, color: T.textMuted, fontStyle: "italic" }}>"{td.conclusion.verseText}" — {td.conclusion.verse}</div>
-            </div>
-          )}
-
-          {/* Stats */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 12 }}>
-            {[{ v: streak, l: "Racha" }, { v: `${pctToday}%`, l: "Hoy" }, { v: `${avgPct}%`, l: "Promedio" }, { v: totalDays, l: "Días" }].map(({ v, l }, i, arr) => (
-              <div key={l} style={{ padding: "12px 0", textAlign: "center", borderRight: i < arr.length - 1 ? `1px solid ${T.border}` : "none" }}>
-                <div style={{ fontSize: 19, fontWeight: 700, color: T.accent }}>{v}</div>
-                <div style={{ fontSize: 9, fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 2 }}>{l}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ height: 5, background: T.surfaceAlt, borderRadius: 3, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${pctToday}%`, background: T.accent, borderRadius: 3, transition: "width 0.5s" }} />
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-            <span style={{ fontSize: 10, color: T.textFaint }}>{doneToday} de {ALL_IDS.length} principios hoy</span>
-            <span style={{ fontSize: 10, color: T.textFaint }}>{pctToday}%</span>
-          </div>
+    <div style={{ minHeight:"100%", background:C.bg, display:"flex", flexDirection:"column" }}>
+      {/* Progress */}
+      <div style={{ padding:"24px 20px 0", flexShrink:0 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+          <div style={{ fontSize:11, fontFamily:D, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:C.primary }}>Check-in</div>
+          <div style={{ fontSize:12, fontFamily:D, fontWeight:700, color:C.inkMute }}>{idx+1}/{PRINCIPLES.length}</div>
         </div>
-
-        {/* CERT PROMPT */}
-        {showCertPrompt && (
-          <div style={{ ...css.card, background: T.accentLight, border: `1.5px solid ${T.accent}`, marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: T.accent, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 6 }}>La IA detectó que estás listo</div>
-            <div style={{ fontSize: 13, color: T.textMid, marginBottom: 14, lineHeight: 1.6 }}>{totalDays} días · {avgPct}% promedio · {completedGoals} metas logradas.</div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => { alert(`Certificación Nivel ${userLevel + 1} — ${nextLevel?.name}.\nDisponible en la próxima actualización.`); setShowCertPrompt(false); }} style={{ ...css.btnPrimary, flex: 2 }}>Iniciar certificación</button>
-              <button onClick={() => setShowCertPrompt(false)} style={{ ...css.btnOutline, flex: 1 }}>Después</button>
-            </div>
-          </div>
-        )}
-
-        {/* TABS */}
-        <div style={{ display: "flex", borderBottom: `1.5px solid ${T.border}`, marginBottom: 20 }}>
-          {[{ k: "checkin", l: "Check-in" }, { k: "progreso", l: "Progreso" }, { k: "metas", l: "Metas" }, { k: "historial", l: "Historial" }].map(({ k, l }) => (
-            <button key={k} onClick={() => setTab(k)} style={{ flex: 1, padding: "10px 0", background: "none", border: "none", borderBottom: tab === k ? `2.5px solid ${T.accent}` : "2.5px solid transparent", color: tab === k ? T.accent : T.textMuted, fontSize: 11, fontWeight: tab === k ? 700 : 500, letterSpacing: "0.12em", textTransform: "uppercase", cursor: "pointer", marginBottom: -2 }}>{l}</button>
+        <div style={{ height:5, background:C.warm, borderRadius:3, overflow:"hidden", marginBottom:8 }}>
+          <div style={{ height:"100%", width:`${((idx)/PRINCIPLES.length)*100}%`, background:`linear-gradient(90deg, ${C.primary}, ${C.primaryMid})`, borderRadius:3, transition:"width 0.4s ease" }} />
+        </div>
+        <div style={{ display:"flex", gap:4, justifyContent:"center" }}>
+          {PRINCIPLES.map((p,i) => (
+            <div key={p.id} style={{ width: i === idx ? 20 : 6, height:6, borderRadius:3, background: td[p.id]?.done !== undefined ? C.primary : i === idx ? C.primaryMid : C.warm, transition:"all 0.3s" }} />
           ))}
         </div>
-
-        {/* ── CHECK-IN ── */}
-        {tab === "checkin" && (
-          <div>
-            {PRINCIPLES.map(area => {
-              const at = areaTokens(area.area);
-              return (
-                <div key={area.area} style={{ marginBottom: 24 }}>
-                  {/* Area header with description */}
-                  <div style={{ marginBottom: 14 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                      <div style={{ width: 28, height: 28, borderRadius: 8, background: at.bg, border: `1px solid ${at.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: at.color }}>{area.icon}</div>
-                      <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", color: at.color, textTransform: "uppercase" }}>{area.area}</span>
-                    </div>
-                    <div style={{ fontSize: 12, color: T.textMuted, lineHeight: 1.6, paddingLeft: 36 }}>{at.desc}</div>
-                  </div>
-
-                  {area.items.map(item => {
-                    const e     = td[item.id] || {};
-                    const isExp = expanded === item.id;
-                    const done  = e.done === true;
-                    const no    = e.done === false;
-                    const verse = getDailyVerse(item.id);
-                    return (
-                      <div key={item.id} style={{ background: T.surface, border: `1.5px solid ${done ? at.border : T.border}`, borderRadius: 10, marginBottom: 10, overflow: "hidden", transition: "border-color 0.2s" }}>
-                        <div style={{ padding: "14px 16px" }}>
-                          <div style={{ fontSize: 11, fontWeight: 700, color: at.color, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 3 }}>{item.name}</div>
-                          <div style={{ fontSize: 13, color: T.textMid, marginBottom: 8, lineHeight: 1.6 }}>{item.practice}</div>
-                          {verse && (
-                            <div style={{ background: at.bg, border: `1px solid ${at.border}`, borderRadius: 8, padding: "8px 12px", marginBottom: 10 }}>
-                              <div style={{ fontSize: 11, color: at.color, fontStyle: "italic", lineHeight: 1.6 }}>"{verse.text}"</div>
-                              <div style={{ fontSize: 10, fontWeight: 700, color: at.color, marginTop: 3, opacity: 0.8 }}>— {verse.ref}</div>
-                            </div>
-                          )}
-                          <div style={{ display: "flex", gap: 8 }}>
-                            <button onClick={() => { setCheck(item.id, true); setExpanded(item.id); }} style={{ flex: 1, padding: "10px", border: `1.5px solid ${done ? at.color : T.border}`, background: done ? at.bg : "transparent", color: done ? at.color : T.textMuted, borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: done ? 700 : 400, transition: "all 0.18s", minHeight: 44 }}>✓ Sí</button>
-                            <button onClick={() => { setCheck(item.id, false); setExpanded(item.id); }} style={{ flex: 1, padding: "10px", border: `1.5px solid ${no ? T.danger : T.border}`, background: no ? T.dangerLight : "transparent", color: no ? T.danger : T.textMuted, borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: no ? 700 : 400, transition: "all 0.18s", minHeight: 44 }}>✗ No</button>
-                            <button onClick={() => setExpanded(isExp ? null : item.id)} style={{ padding: "10px 16px", border: `1.5px solid ${isExp ? T.borderStrong : T.border}`, background: isExp ? T.surfaceAlt : "transparent", color: T.textMuted, borderRadius: 8, cursor: "pointer", fontSize: 13, minHeight: 44 }}>✎</button>
-                          </div>
-                        </div>
-                        {isExp && (
-                          <div style={{ borderTop: `1px solid ${T.border}`, padding: "12px 16px", background: T.bg }}>
-                            <label style={css.label}>Reflexión</label>
-                            <textarea value={e.reflection || ""} onChange={ev => setRef(item.id, ev.target.value)} placeholder="¿Qué te habla este versículo hoy? Escribe libremente lo que piensas, sientes o aprendiste..." style={{ ...css.input, resize: "vertical", minHeight: 90, lineHeight: 1.7 }} />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
-
-            {/* Tithe button — at the bottom of checkin */}
-            <div style={{ ...css.card, borderLeft: `4px solid ${T.areas.Espiritual.color}`, borderRadius: "0 12px 12px 0", marginBottom: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: T.areas.Espiritual.color, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>Diezmo</div>
-              <div style={{ fontSize: 12, color: T.textMuted, lineHeight: 1.6, marginBottom: 12 }}>El diezmo no es una obligación — es un acto de pacto. Honrar a Dios con tus primicias activa su provisión sobre todo lo demás. Malaquías 3:10</div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ fontSize: 12, color: tithes.filter(t => t.date === todayKey()).length > 0 ? T.accentMid : T.textMuted, fontWeight: tithes.filter(t => t.date === todayKey()).length > 0 ? 700 : 400 }}>
-                  {tithes.filter(t => t.date === todayKey()).length > 0 ? "✓ Diezmo registrado hoy" : titheMessage}
-                </div>
-                <button onClick={() => setShowTitheModal(true)} style={{ background: T.areas.Espiritual.bg, border: `1.5px solid ${T.areas.Espiritual.border}`, borderRadius: 10, padding: "10px 16px", color: T.areas.Espiritual.color, fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", minHeight: 44 }}>Reportar diezmo</button>
-              </div>
-            </div>
-
-            {/* Ver cómo me fue hoy — always visible at bottom */}
-            <button onClick={handleVerMiFeedback} style={{ ...css.btnPrimary, marginBottom: 8 }}>
-              Ver cómo me fue hoy →
-            </button>
-            <div style={{ fontSize: 11, color: T.textFaint, textAlign: "center", lineHeight: 1.5, marginBottom: 20 }}>
-              La IA analiza tus respuestas y reflexiones del día y te da una palabra personalizada.
-            </div>
-          </div>
-        )}
-
-        {/* ── PROGRESO ── */}
-        {tab === "progreso" && (
-          <div>
-            {/* 7-day chart */}
-            <div style={css.card}>
-              <label style={css.label}>Últimos 7 días</label>
-              <div style={{ display: "flex", gap: 6, alignItems: "flex-end", height: 100 }}>
-                {weekData.map(({ date, pct: p }) => {
-                  const isT = date === todayKey();
-                  return (
-                    <div key={date} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
-                      <div style={{ fontSize: 9, color: T.textMuted, fontWeight: 600 }}>{p > 0 ? `${p}%` : ""}</div>
-                      <div style={{ width: "100%", flex: 1, display: "flex", alignItems: "flex-end" }}>
-                        <div style={{ width: "100%", height: `${Math.max(p, p > 0 ? 6 : 0)}%`, minHeight: p > 0 ? 5 : 0, background: p >= 80 ? T.accent : p >= 50 ? T.accentMid : p > 0 ? T.border : T.surfaceAlt, borderRadius: "4px 4px 0 0", transition: "height 0.4s", outline: isT ? `2px solid ${T.accent}` : "none", outlineOffset: 2 }} />
-                      </div>
-                      <div style={{ fontSize: 8, color: isT ? T.accent : T.textFaint, textAlign: "center", lineHeight: 1.4, fontWeight: isT ? 700 : 400 }}>{fmtShort(date).split(" ")[0]}<br />{fmtShort(date).split(" ")[1]}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Week AI analysis — between chart and area stats */}
-            <div style={{ ...css.card, background: T.accentLight, border: `1px solid ${T.accent}30` }}>
-              <label style={{ ...css.label, color: T.accent }}>✦ Lo que dice tu semana</label>
-              {analysisLoading ? (
-                <div style={{ fontSize: 13, color: T.textMuted, fontStyle: "italic" }}>Analizando tu semana...</div>
-              ) : weekAnalysis ? (
-                <div style={{ fontSize: 13, color: T.textMid, lineHeight: 1.7 }}>{weekAnalysis}</div>
-              ) : (
-                <div style={{ fontSize: 13, color: T.textMuted, lineHeight: 1.7, fontStyle: "italic" }}>
-                  {totalDays === 0 ? "Completa tu primer check-in para ver el análisis de tu semana." : `Llevas ${totalDays} días registrados con un promedio de ${avgPct}%. ${avgPct >= 70 ? "Estás siendo consistente." : "La constancia es la clave — sigue adelante."}`}
-                </div>
-              )}
-            </div>
-
-            {/* Area stats */}
-            <div style={css.card}>
-              <label style={css.label}>Por área — 7 días</label>
-              {areaStats.map(({ area, pct: p }) => {
-                const at = areaTokens(area);
-                return (
-                  <div key={area} style={{ marginBottom: 16 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                      <span style={{ fontSize: 13, color: T.textMid }}>{area}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: at.color }}>{p}%</span>
-                    </div>
-                    <div style={{ height: 6, background: T.surfaceAlt, borderRadius: 3, overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${p}%`, background: at.color, borderRadius: 3, transition: "width 0.5s" }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div style={css.card}>
-              <label style={css.label}>Estadísticas</label>
-              {[["Días registrados", totalDays], ["Principios cumplidos", totalDone], ["Promedio diario", `${avgPct}%`], ["Racha actual", `${streak} días`], ["Diezmos registrados", tithes.length], ["Metas activas", goals.filter(g => !g.done).length], ["Metas logradas", completedGoals]].map(([l, v]) => (
-                <div key={l} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${T.border}` }}>
-                  <span style={{ fontSize: 13, color: T.textMid }}>{l}</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: T.accent }}>{v}</span>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ ...css.card, borderLeft: `4px solid ${currentLevel.color}`, borderRadius: "0 12px 12px 0" }}>
-              <label style={{ ...css.label, color: currentLevel.color }}>Tu nivel actual</label>
-              <div style={{ fontSize: 22, fontWeight: 700, color: currentLevel.color, marginBottom: 4 }}>{currentLevel.name}</div>
-              <div style={{ fontSize: 13, color: T.textMid, fontStyle: "italic" }}>{currentLevel.objective}</div>
-            </div>
-          </div>
-        )}
-
-        {/* ── METAS ── */}
-        {tab === "metas" && (
-          <div>
-            <div style={{ background: T.accentLight, border: `1px solid ${T.accent}30`, borderRadius: 10, padding: "12px 16px", marginBottom: 18 }}>
-              <div style={{ fontSize: 12, color: T.accentMid, lineHeight: 1.6, fontStyle: "italic" }}>"Tu propósito es prosperar en todo. Cada meta que defines es un paso en esa dirección." — 3 Juan 1:2</div>
-            </div>
-
-            {/* Only allow new goal if no active goal */}
-            {activeGoal ? (
-              <div style={{ ...css.card, border: `1.5px solid ${T.border}`, marginBottom: 18 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: T.textMid, marginBottom: 4 }}>Meta activa en proceso</div>
-                <div style={{ fontSize: 12, color: T.textMuted, lineHeight: 1.6 }}>Completa tu meta actual antes de comenzar una nueva. La constancia en una sola dirección produce resultados reales.</div>
-              </div>
-            ) : (
-              <button onClick={() => { setShowGoalForm(!showGoalForm); setGoalStep("form"); setSubgoals([]); }} style={{ ...css.btnPrimary, marginBottom: 18 }}>
-                {showGoalForm ? "✕ Cancelar" : "+ Nueva Meta"}
-              </button>
-            )}
-
-            {showGoalForm && !activeGoal && (
-              <div style={css.card}>
-                {goalStep === "form" && (
-                  <>
-                    <label style={css.label}>¿Qué quieres lograr?</label>
-                    <input value={newGoalTitle} onChange={e => setNewGoalTitle(e.target.value)} placeholder="Ej: Salir de deudas, aprender a diezmar, ahorrar mi primer fondo..." style={{ ...css.input, marginBottom: 10 }} />
-                    <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 14, lineHeight: 1.6, fontStyle: "italic" }}>La IA analizará tu meta basándose en tu perfil y generará los pasos para llegar ahí.</div>
-                    <button onClick={handleGoalSubgoals} disabled={!newGoalTitle.trim()} style={{ ...css.btnPrimary, opacity: newGoalTitle.trim() ? 1 : 0.4, cursor: newGoalTitle.trim() ? "pointer" : "not-allowed" }}>Generar plan con IA</button>
-                  </>
-                )}
-                {goalStep === "select" && (
-                  <>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: T.text, marginBottom: 4 }}>{newGoalTitle}</div>
-                    <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 16 }}>{aiLoading ? "La IA está preparando tu plan..." : "Estos son los pasos para llegar a tu meta:"}</div>
-                    {aiLoading ? (
-                      <div style={{ textAlign: "center", padding: "32px 0", color: T.textMuted }}>
-                        <div style={{ fontSize: 24, marginBottom: 8 }}>◈</div>
-                        <div style={{ fontSize: 13 }}>Consultando con IA...</div>
-                      </div>
-                    ) : (
-                      <>
-                        {subgoals.map((sg, i) => (
-                          <div key={i} style={{ display: "flex", gap: 12, padding: "11px 0", borderBottom: `1px solid ${T.border}` }}>
-                            <div style={{ width: 22, height: 22, borderRadius: "50%", background: T.accentLight, border: `2px solid ${T.accent}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: T.accent, flexShrink: 0 }}>{i + 1}</div>
-                            <span style={{ fontSize: 13, color: T.textMid, lineHeight: 1.55, paddingTop: 2 }}>{sg}</span>
-                          </div>
-                        ))}
-                        {/* Explanation message */}
-                        <div style={{ background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 8, padding: "12px 14px", margin: "14px 0" }}>
-                          <div style={{ fontSize: 12, color: T.textMid, lineHeight: 1.7 }}>
-                            <strong>¿Cómo se mide tu avance?</strong><br />
-                            No vas a marcar estos pasos manualmente. El cumplimiento de cada uno se detectará automáticamente a través de lo que escribas en tus reflexiones del check-in diario. Tu experiencia diaria es la evidencia de tu avance.
-                          </div>
-                        </div>
-                        <div style={{ display: "flex", gap: 10 }}>
-                          <button onClick={() => setGoalStep("form")} style={{ ...css.btnOutline, flex: 1, minHeight: 44 }}>← Editar</button>
-                          <button onClick={saveGoal} style={{ ...css.btnPrimary, flex: 2, minHeight: 44 }}>Guardar esta meta</button>
-                        </div>
-                      </>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-
-            {goals.length === 0 && !showGoalForm && (
-              <div style={{ textAlign: "center", padding: "48px 0", color: T.textFaint }}>
-                <div style={{ fontSize: 32, marginBottom: 10 }}>◈</div>
-                <div style={{ fontSize: 13 }}>Define tu primera meta hacia la prosperidad</div>
-              </div>
-            )}
-
-            {goals.map(goal => {
-              const isExpanded     = expandedGoal === goal.id;
-              const completedSubs  = goal.subgoals?.filter(s => s.status === "completed").length || 0;
-              const inProgressSubs = goal.subgoals?.filter(s => s.status === "in_progress").length || 0;
-              const totalSubs      = goal.subgoals?.length || 0;
-              const pct            = totalSubs > 0 ? Math.round((completedSubs / totalSubs) * 100) : 0;
-              return (
-                <div key={goal.id} style={{ ...css.card, opacity: goal.done ? 0.55 : 1, borderLeft: `4px solid ${T.accent}`, borderRadius: "0 12px 12px 0" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 10 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, color: T.textFaint, marginBottom: 3 }}>{fmt(goal.createdAt)}</div>
-                      <div style={{ fontSize: 15, color: goal.done ? T.textMuted : T.text, textDecoration: goal.done ? "line-through" : "none", lineHeight: 1.4, marginBottom: 4 }}>{goal.title}</div>
-                      {totalSubs > 0 && <div style={{ fontSize: 11, color: T.textMuted }}>{completedSubs} completados · {inProgressSubs} en progreso · {totalSubs - completedSubs - inProgressSubs} pendientes</div>}
-                    </div>
-                    <button onClick={() => toggleDone(goal.id)} style={{ ...css.btnOutline, fontSize: 11, padding: "8px 12px", whiteSpace: "nowrap", minHeight: 44, borderColor: goal.done ? T.accent : T.border, color: goal.done ? T.accent : T.textMuted }}>
-                      {goal.done ? "✓ Logrado" : "Completar"}
-                    </button>
-                  </div>
-                  {totalSubs > 0 && (
-                    <>
-                      <div style={{ height: 4, background: T.surfaceAlt, borderRadius: 2, marginBottom: 10, overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${pct}%`, background: T.accent, borderRadius: 2, transition: "width 0.4s" }} />
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                        <button onClick={() => setExpandedGoal(isExpanded ? null : goal.id)} style={{ background: "none", border: "none", color: T.textMuted, cursor: "pointer", fontSize: 12, padding: 0 }}>
-                          {isExpanded ? "▲ Ocultar pasos" : "▼ Ver pasos"}
-                        </button>
-                        {!goal.done && <button onClick={() => refreshGoalProgress(goal)} style={{ background: "none", border: "none", color: T.accentMid, cursor: "pointer", fontSize: 11, padding: 0, fontWeight: 700 }}>↻ Analizar con IA</button>}
-                      </div>
-                      {isExpanded && goal.subgoals?.map((sg, i) => (
-                        <div key={i} style={{ display: "flex", gap: 10, padding: "8px 0", borderTop: `1px solid ${T.border}` }}>
-                          <div style={{ width: 18, height: 18, borderRadius: "50%", background: sg.status === "completed" ? T.accent : sg.status === "in_progress" ? T.accentLight : T.surfaceAlt, border: `2px solid ${sg.status === "completed" ? T.accent : sg.status === "in_progress" ? T.accentMid : T.borderStrong}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
-                            {sg.status === "completed" && <span style={{ fontSize: 9, color: "#FFF", fontWeight: 700 }}>✓</span>}
-                            {sg.status === "in_progress" && <span style={{ fontSize: 9, color: T.accent, fontWeight: 700 }}>→</span>}
-                          </div>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 13, color: sg.status === "completed" ? T.textMuted : T.textMid, textDecoration: sg.status === "completed" ? "line-through" : "none", lineHeight: 1.5 }}>{sg.text}</div>
-                            {sg.evidence && <div style={{ fontSize: 11, color: T.textFaint, marginTop: 2, fontStyle: "italic" }}>{sg.evidence}</div>}
-                          </div>
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* ── HISTORIAL ── */}
-        {tab === "historial" && (
-          <div>
-            {Object.keys(checkins).sort((a, b) => b.localeCompare(a)).slice(0, 60).map(date => {
-              const day  = checkins[date];
-              const done = ALL_IDS.filter(id => day[id]?.done === true).length;
-              const p    = Math.round((done / ALL_IDS.length) * 100);
-              const isT  = date === todayKey();
-              return (
-                <div key={date} style={{ ...css.card, padding: "14px 18px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 13, color: T.text }}>{fmt(date)}</span>
-                      {isT && <span style={{ fontSize: 9, fontWeight: 700, color: T.accent, background: T.accentLight, padding: "2px 7px", borderRadius: 10 }}>HOY</span>}
-                      {day.closed && <span style={{ fontSize: 9, fontWeight: 700, color: T.accentMid }}>✓ Cerrado</span>}
-                    </div>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: p >= 80 ? T.accent : p >= 50 ? T.accentMid : T.textFaint }}>{p}%</span>
-                  </div>
-                  <div style={{ height: 4, background: T.surfaceAlt, borderRadius: 2, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${p}%`, background: p >= 80 ? T.accent : p >= 50 ? T.accentMid : T.border, borderRadius: 2 }} />
-                  </div>
-                  <div style={{ fontSize: 11, color: T.textFaint, marginTop: 5 }}>{done} de {ALL_IDS.length} principios</div>
-                  {day.conclusion && <div style={{ fontSize: 11, color: conclusionColors[day.conclusion.level], marginTop: 5, fontStyle: "italic" }}>"{day.conclusion.message}"</div>}
-                </div>
-              );
-            })}
-            {Object.keys(checkins).length === 0 && (
-              <div style={{ textAlign: "center", padding: "48px 0", color: T.textFaint }}>
-                <div style={{ fontSize: 13 }}>Comienza tu check-in para ver el historial aquí</div>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
-      {/* BOTTOM NAV */}
-      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: T.surface, borderTop: `1px solid ${T.border}`, display: "flex", zIndex: 50 }}>
-        {[{ k: "checkin", l: "Check-in", icon: "✦" }, { k: "progreso", l: "Progreso", icon: "◈" }, { k: "metas", l: "Metas", icon: "◆" }, { k: "historial", l: "Historial", icon: "◉" }].map(({ k, l, icon }) => (
-          <button key={k} onClick={() => setTab(k)} style={{ flex: 1, padding: "10px 0 14px", background: "none", border: "none", borderTop: tab === k ? `2.5px solid ${T.accent}` : "2.5px solid transparent", color: tab === k ? T.accent : T.textMuted, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-            <span style={{ fontSize: 14 }}>{icon}</span>
-            <span style={{ fontSize: 9, fontWeight: tab === k ? 700 : 500, letterSpacing: "0.08em", textTransform: "uppercase" }}>{l}</span>
-          </button>
+      {/* Card */}
+      <div key={`${principle.id}-${cardKey.current}`} style={{ flex:1, padding:"14px 16px 0", overflow:"auto", display:"flex", flexDirection:"column" }}>
+        <div className="scale-in" style={{ ...css.card(), overflow:"hidden", flex:"0 0 auto" }}>
+          <div style={{ height:4, background:area.c, opacity:0.7 }} />
+
+          {/* 1 — Badge */}
+          <div style={{ padding:"16px 20px 0", display:"flex", alignItems:"center", gap:10 }}>
+            <div style={{ width:30, height:30, borderRadius:9, background:area.bg, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, color:area.c }}>{principle.icon}</div>
+            <div>
+              <div style={{ fontSize:9, fontFamily:D, fontWeight:700, letterSpacing:"0.16em", textTransform:"uppercase", color:area.c }}>{principle.area}</div>
+              <div style={{ fontSize:12, fontFamily:D, fontWeight:600, color:C.inkMid }}>{principle.name}</div>
+            </div>
+          </div>
+
+          {/* 2 — Question */}
+          <div style={{ padding:"16px 20px 0" }}>
+            <p style={{ fontSize:20, fontFamily:D, fontWeight:600, color:C.ink, lineHeight:1.5 }}>{question}</p>
+          </div>
+
+          {/* 3 — Verse auto-appears */}
+          <div style={{ padding:"14px 20px 0" }}>
+            {verseVisible && verse && (
+              <div className="verse-in" style={{ background:area.bg, borderRadius:14, padding:"13px 16px", border:`1px solid ${area.stroke}`, borderLeft:`4px solid ${area.c}` }}>
+                <p style={{ fontSize:13, fontFamily:B, fontStyle:"italic", color:area.c, lineHeight:1.75, marginBottom:7 }}>"{verse.text}"</p>
+                <div style={{ fontSize:10, fontFamily:D, fontWeight:700, color:area.c, opacity:0.65 }}>— {verse.ref}</div>
+              </div>
+            )}
+          </div>
+
+          {/* 4 — Reflection always visible */}
+          <div style={{ padding:"12px 20px 0" }}>
+            {reflVisible && (
+              <div className="verse-in">
+                <div style={css.label()}>Tu nota</div>
+                <textarea
+                  value={currentRefl}
+                  onChange={e => setCurrentRefl(e.target.value)}
+                  placeholder="¿Algo que quieras recordar de hoy?..."
+                  style={{ width:"100%", background:C.bg, border:`1.5px solid ${C.stroke}`, borderRadius:12, padding:"12px 14px", color:C.ink, fontSize:13, fontFamily:B, resize:"none", height:78, lineHeight:1.65, boxSizing:"border-box", transition:"border-color 0.2s", outline:"none" }}
+                  onFocus={e => e.target.style.borderColor = area.c}
+                  onBlur={e => e.target.style.borderColor = C.stroke}
+                />
+              </div>
+            )}
+          </div>
+
+          <div style={{ margin:"14px 20px 0", height:1, background:C.stroke }} />
+
+          {/* 5 — Buttons */}
+          <div style={{ padding:"14px 20px 20px", display:"flex", gap:10 }}>
+            <button onClick={() => answer(false)} style={{ flex:1, padding:"12px", background:"transparent", border:`1.5px solid ${C.stroke}`, borderRadius:12, color:C.inkMute, fontSize:13, fontFamily:D, fontWeight:600, cursor:"pointer", minHeight:46 }}>No hoy</button>
+            <button onClick={() => answer(true)}  style={{ flex:2, padding:"12px", background:area.c, border:"none", borderRadius:12, color:"#FFF", fontSize:14, fontFamily:D, fontWeight:700, cursor:"pointer", minHeight:46, boxShadow:`0 4px 14px ${area.glow}` }}>Sí, lo hice ✓</button>
+          </div>
+        </div>
+        <div style={{ height:20, flexShrink:0 }} />
+      </div>
+    </div>
+  );
+}
+
+// ── PROGRESS TAB ──────────────────────────────────────────────────────────────
+function ProgressTab({ checkins, profile }) {
+  const last7    = getLast7();
+  const weekData = last7.map(date => { const day = checkins[date] || {}; return { date, pct: Math.round((PRINCIPLE_IDS.filter(id => day[id]?.done === true).length / PRINCIPLES.length) * 100) }; });
+  const areaGroups = ["spirit","finance","character","relation"];
+  const areaNames  = { spirit:"Espiritual", finance:"Financiero", character:"Carácter", relation:"Relacional" };
+  const areaPrinciples = {
+    spirit:    PRINCIPLES.filter(p => p.areaKey === "spirit"),
+    finance:   PRINCIPLES.filter(p => p.areaKey === "finance"),
+    character: PRINCIPLES.filter(p => p.areaKey === "character"),
+    relation:  PRINCIPLES.filter(p => p.areaKey === "relation"),
+  };
+
+  const areaStats = areaGroups.map(key => {
+    const ids = areaPrinciples[key].map(p => p.id);
+    let tot = 0, sum = 0;
+    last7.forEach(date => { const day = checkins[date] || {}; ids.forEach(id => { if (day[id]?.done !== undefined) { tot++; if (day[id]?.done) sum++; } }); });
+    return { key, pct: tot > 0 ? Math.round((sum/tot)*100) : 0 };
+  });
+
+  const totalDays  = Object.keys(checkins).length;
+  const totalDone  = Object.values(checkins).reduce((a,d) => a + PRINCIPLE_IDS.filter(id => d[id]?.done === true).length, 0);
+  const avgPct     = totalDays > 0 ? Math.round((totalDone / (totalDays * PRINCIPLES.length)) * 100) : 0;
+  let streak = 0;
+  const d = new Date();
+  while (true) {
+    const k = d.toISOString().split("T")[0];
+    const day = checkins[k];
+    if (!day || PRINCIPLE_IDS.filter(id => day[id] !== undefined).length < PRINCIPLES.length * 0.5) break;
+    streak++; d.setDate(d.getDate()-1);
+  }
+
+  const lv     = C.levels[profile.level || 1];
+  const goalTf = GOAL_TIMEFRAMES.find(t => t.value === profile.goal?.timeframe)?.label;
+
+  return (
+    <div style={{ minHeight:"100%", background:C.bg, padding:"24px 16px 16px" }}>
+
+      {/* Goal strip */}
+      {profile.goal?.goal && (
+        <div className="reveal" style={{ background:C.surface, borderRadius:16, padding:"14px 16px", marginBottom:10, border:`1px solid ${C.stroke}`, borderTop:`3px solid ${lv.color}` }}>
+          <div style={{ fontSize:9, fontFamily:D, fontWeight:700, letterSpacing:"0.14em", textTransform:"uppercase", color:lv.color, marginBottom:5 }}>Tu meta</div>
+          <div style={{ fontSize:13, fontFamily:D, fontWeight:600, color:C.ink, lineHeight:1.4, marginBottom:5 }}>"{profile.goal.goal.substring(0,100)}..."</div>
+          {goalTf && <div style={{ fontSize:11, fontFamily:B, color:C.inkFaint }}>Plazo estimado: {goalTf}</div>}
+        </div>
+      )}
+
+      {/* Stats */}
+      <div className="reveal d1" style={{ display:"flex", gap:10, marginBottom:10 }}>
+        {[{ v:`${streak}`, l:"Racha" },{ v:`${avgPct}%`, l:"Promedio" }].map(({ v, l }) => (
+          <div key={l} style={{ flex:1, ...css.card(), padding:"16px", textAlign:"center" }}>
+            <div style={{ fontSize:32, fontFamily:D, fontWeight:800, color:C.primary, lineHeight:1 }}>{v}</div>
+            <div style={{ fontSize:9, fontFamily:D, fontWeight:600, color:C.inkMute, marginTop:5, textTransform:"uppercase", letterSpacing:"0.1em" }}>{l}</div>
+          </div>
         ))}
       </div>
 
-      {showTitheModal && <TitheModal />}
-      {showCloseDay && <CloseDayModal />}
+      {/* 7-day chart */}
+      <div className="reveal d2" style={{ ...css.card(), padding:"16px", marginBottom:10 }}>
+        <div style={css.label()}>Últimos 7 días</div>
+        <div style={{ display:"flex", gap:6, alignItems:"flex-end", height:100 }}>
+          {weekData.map(({ date, pct: p }, i) => {
+            const isT = date === todayKey();
+            const bg  = p >= 80 ? C.primary : p >= 50 ? C.primaryMid : p > 0 ? C.warm : "#EDEAE4";
+            return (
+              <div key={i} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:5 }}>
+                <div style={{ fontSize:9, fontFamily:D, fontWeight:600, color:C.inkFaint }}>{p > 0 ? `${p}` : ""}</div>
+                <div style={{ width:"100%", flex:1, display:"flex", alignItems:"flex-end" }}>
+                  <div style={{ width:"100%", height:`${Math.max(p, p > 0 ? 10 : 0)}%`, background: isT ? `linear-gradient(180deg, ${C.primaryMid}, ${C.primary})` : bg, borderRadius:"7px 7px 0 0", outline: isT ? `2px solid ${C.primary}` : "none", outlineOffset:2, transition:"height 0.5s" }} />
+                </div>
+                <div style={{ fontSize:8, fontFamily:D, fontWeight:isT ? 700 : 400, color:isT ? C.primary : C.inkFaint }}>{fmtShort(date).split(" ")[0]}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Area stats */}
+      <div className="reveal d3" style={{ ...css.card(), padding:"16px", marginBottom:10 }}>
+        <div style={css.label()}>Por área — 7 días</div>
+        {areaStats.map(({ key, pct: p }) => {
+          const at = C.areas[key];
+          return (
+            <div key={key} style={{ marginBottom:12 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+                <span style={{ fontSize:13, fontFamily:B, color:C.inkMid }}>{areaNames[key]}</span>
+                <span style={{ fontSize:13, fontFamily:D, fontWeight:700, color:at.c }}>{p}%</span>
+              </div>
+              <div style={{ height:5, background:C.warm, borderRadius:3, overflow:"hidden" }}>
+                <div style={{ height:"100%", width:`${p}%`, background:at.c, borderRadius:3, transition:"width 0.6s" }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Level */}
+      <div className="reveal d4" style={{ ...css.card(), padding:"16px", borderTop:`3px solid ${lv.color}`, borderRadius:"0 0 16px 16px" }}>
+        <div style={{ fontSize:9, fontFamily:D, fontWeight:700, letterSpacing:"0.14em", textTransform:"uppercase", color:lv.color, marginBottom:6 }}>Nivel actual</div>
+        <div style={{ fontSize:22, fontFamily:D, fontWeight:800, color:lv.color, marginBottom:4 }}>{lv.symbol} Nivel {profile.level} — {lv.name}</div>
+        <div style={{ fontSize:12, fontFamily:B, color:C.inkMute }}>{totalDays} días registrados · {totalDone} principios cumplidos en total</div>
+      </div>
+    </div>
+  );
+}
+
+// ── HISTORY TAB ───────────────────────────────────────────────────────────────
+function HistoryTab({ checkins }) {
+  const sorted = Object.keys(checkins).sort((a,b) => b.localeCompare(a)).slice(0,60);
+  const resultColors = { excellent:C.primary, good:C.primaryMid, building:C.amber, restart:"#7A5800" };
+
+  if (!sorted.length) return (
+    <div style={{ minHeight:"100%", background:C.bg, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:12, padding:"0 24px" }}>
+      <div style={{ fontSize:32, color:C.warm }}>◈</div>
+      <div style={{ fontSize:14, fontFamily:B, color:C.inkFaint, textAlign:"center" }}>Comienza tu check-in para ver el historial aquí</div>
+    </div>
+  );
+
+  return (
+    <div style={{ minHeight:"100%", background:C.bg, padding:"24px 16px 16px" }}>
+      {sorted.map(date => {
+        const day  = checkins[date];
+        const done = PRINCIPLE_IDS.filter(id => day[id]?.done === true).length;
+        const p    = Math.round((done / PRINCIPLES.length) * 100);
+        const isT  = date === todayKey();
+        const conclusion = day.conclusion;
+        return (
+          <div key={date} style={{ ...css.card(), padding:"14px 16px", marginBottom:10 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:7 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <span style={{ fontSize:13, fontFamily:D, fontWeight:600, color:C.ink }}>{fmt(date)}</span>
+                {isT && <span style={{ fontSize:9, fontFamily:D, fontWeight:700, color:C.primary, background:C.primaryLight, padding:"2px 7px", borderRadius:10 }}>HOY</span>}
+                {day.closed && <span style={{ fontSize:9, fontFamily:D, fontWeight:600, color:C.inkFaint }}>✓ Cerrado</span>}
+              </div>
+              <span style={{ fontSize:14, fontFamily:D, fontWeight:800, color: p >= 80 ? C.primary : p >= 50 ? C.primaryMid : C.inkFaint }}>{p}%</span>
+            </div>
+            <div style={{ height:4, background:C.warm, borderRadius:2, overflow:"hidden", marginBottom:7 }}>
+              <div style={{ height:"100%", width:`${p}%`, background: p >= 80 ? C.primary : p >= 50 ? C.primaryMid : C.warm, borderRadius:2 }} />
+            </div>
+            <div style={{ fontSize:11, fontFamily:B, color:C.inkFaint, marginBottom: conclusion ? 8 : 0 }}>{done} de {PRINCIPLES.length} principios</div>
+            {conclusion && (
+              <div style={{ fontSize:12, fontFamily:B, fontStyle:"italic", color: resultColors[conclusion.level] || C.inkMute, lineHeight:1.5 }}>"{conclusion.message}"</div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── MAIN APP ──────────────────────────────────────────────────────────────────
+export default function App() {
+  // Onboarding flow
+  const [obStage, setObStage]   = useState("loading"); // loading|welcome0|welcome1|goal|mindset|situation|result|app
+  const [goalData, setGoalData] = useState(null);
+  const [mindset, setMindset]   = useState(null);
+  const [situation, setSituation] = useState(null);
+
+  // App state
+  const [tab, setTab]           = useState("checkin");
+  const [checkins, setCheckins] = useState({});
+  const [tithes, setTithes]     = useState([]);
+  const [profile, setProfile]   = useState({});
+  const [loaded, setLoaded]     = useState(false);
+
+  // Load
+  useEffect(() => {
+    const ob = lsGet("v2_onboarded", false);
+    setCheckins(lsGet("v2_checkins", {}));
+    setTithes(lsGet("v2_tithes", []));
+    setProfile(lsGet("v2_profile", {}));
+    setLoaded(true);
+    setObStage(ob ? "app" : "welcome0");
+  }, []);
+
+  // Persist checkins
+  useEffect(() => { if (loaded) lsSet("v2_checkins", checkins); }, [checkins, loaded]);
+  useEffect(() => { if (loaded) lsSet("v2_tithes", tithes); }, [tithes, loaded]);
+
+  const finishOnboarding = (sit) => {
+    const level = detectLevel(sit, mindset || {}, goalData?.goal || "");
+    const newProfile = { level, goal: goalData, mindset, situation: sit, bibleVersion: sit.bible_version || "es-RVR1960" };
+    setProfile(newProfile);
+    lsSet("v2_profile", newProfile);
+    lsSet("v2_onboarded", true);
+    setObStage("result");
+    setSituation(sit);
+  };
+
+  const TABS = [
+    { id:"checkin",  icon:"✦", label:"Hoy"      },
+    { id:"progress", icon:"◈", label:"Progreso" },
+    { id:"history",  icon:"◉", label:"Historial"},
+  ];
+
+  const lv = C.levels[profile.level || 1];
+
+  const renderStage = () => {
+    switch(obStage) {
+      case "loading":   return <div style={{ minHeight:"100%", background:C.bg, display:"flex", alignItems:"center", justifyContent:"center" }}><div style={{ fontSize:24, color:C.primary }}>✦</div></div>;
+      case "welcome0":  return <WelcomeScreen screen={0} onNext={() => setObStage("welcome1")} onBack={() => {}} />;
+      case "welcome1":  return <WelcomeScreen screen={1} onNext={() => setObStage("goal")} onBack={() => setObStage("welcome0")} />;
+      case "goal":      return <GoalScreen onNext={(data) => { setGoalData(data); setObStage("mindset"); }} onBack={() => setObStage("welcome1")} />;
+      case "mindset":   return <MindsetScreen onNext={(data) => { setMindset(data); setObStage("situation"); }} onBack={() => setObStage("goal")} />;
+      case "situation": return <SituationScreen onNext={finishOnboarding} onBack={() => setObStage("mindset")} />;
+      case "result":    return <ResultScreen profile={{ ...profile, level: profile.level || detectLevel(situation||{}, mindset||{}, ""), goal: goalData }} onStart={() => setObStage("app")} />;
+      case "app":       return renderApp();
+      default:          return null;
+    }
+  };
+
+  const renderApp = () => (
+    <div style={{ minHeight:"100%", background:C.bg, display:"flex", flexDirection:"column" }}>
+      {/* Header */}
+      <div style={{ background:C.surface, borderBottom:`1px solid ${C.stroke}`, padding:"16px 20px 12px", flexShrink:0 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+          <div>
+            <div style={{ fontSize:10, fontFamily:D, fontWeight:700, letterSpacing:"0.16em", textTransform:"uppercase", color:C.primary, marginBottom:2 }}>Prospera en Todo</div>
+            <div style={{ fontSize:13, fontFamily:B, color:C.inkFaint, fontStyle:"italic" }}>{fmt(todayKey())}</div>
+          </div>
+          <div style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"4px 12px", background:lv.bg, border:`1px solid ${lv.color}30`, borderRadius:20 }}>
+            <span style={{ fontSize:11 }}>{lv.symbol}</span>
+            <span style={{ fontSize:10, fontFamily:D, fontWeight:700, color:lv.color, letterSpacing:"0.1em", textTransform:"uppercase" }}>N{profile.level} · {lv.name}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div style={{ flex:1, overflow:"auto" }}>
+        {tab === "checkin"  && <CheckinTab  checkins={checkins} setCheckins={setCheckins} profile={profile} tithes={tithes} setTithes={setTithes} />}
+        {tab === "progress" && <ProgressTab checkins={checkins} profile={profile} />}
+        {tab === "history"  && <HistoryTab  checkins={checkins} />}
+      </div>
+
+      {/* Bottom nav */}
+      <div style={{ background:C.surface, borderTop:`1px solid ${C.stroke}`, display:"flex", paddingBottom:8, flexShrink:0 }}>
+        {TABS.map(({ id, icon, label }) => {
+          const active = tab === id;
+          return (
+            <button key={id} onClick={() => setTab(id)} style={{ flex:1, padding:"12px 0 6px", background:"none", border:"none", borderTop:`2.5px solid ${active ? C.primary : "transparent"}`, color:active ? C.primary : C.inkFaint, cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3, transition:"all 0.2s" }}>
+              <span style={{ fontSize:15 }}>{icon}</span>
+              <span style={{ fontSize:9, fontFamily:D, fontWeight:active ? 700 : 500, letterSpacing:"0.06em", textTransform:"uppercase" }}>{label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ background:C.bg, minHeight:"100vh", maxWidth:480, margin:"0 auto", position:"relative" }}>
+      <GlobalStyles />
+      {renderStage()}
     </div>
   );
 }
