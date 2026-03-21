@@ -234,89 +234,89 @@ const MINDSET_QUESTIONS = [
 id:“money_feeling”,
 q:“Cuando piensas en tener mucho más dinero del que tienes ahora, ¿qué sientes primero?”,
 opts:[
-{ label:“Emoción — lo visualizo y me motiva”,         value:“growth” },
-{ label:“Duda — no sé si es realmente para mí”,       value:“doubt”  },
-{ label:“Miedo — no sé si podría manejarlo”,          value:“fear”   },
-{ label:“Culpa — siento que no debería quererlo”,     value:“guilt”  },
-{ label:“Nada en particular”,                          value:“neutral”},
+{ label:“Emoción — lo visualizo y me motiva”,         value:“mf_growth”  },
+{ label:“Duda — no sé si es realmente para mí”,       value:“mf_doubt”   },
+{ label:“Miedo — no sé si podría manejarlo”,          value:“mf_fear”    },
+{ label:“Culpa — siento que no debería quererlo”,     value:“mf_guilt”   },
+{ label:“Nada en particular”,                          value:“mf_neutral” },
 ]
 },
 {
 id:“money_belief”,
 q:”¿Con cuál de estas frases te identificas más en este momento?”,
 opts:[
-{ label:“El dinero es una herramienta — ni buena ni mala”,      value:“tool”    },
-{ label:“El dinero cambia a las personas, para mal”,            value:“fear”    },
-{ label:“El dinero es una bendición que hay que saber llevar”,  value:“growth”  },
-{ label:“El dinero es para disfrutarlo, no para acumularlo”,    value:“consume” },
-{ label:“El dinero trae más problemas que soluciones”,          value:“guilt”   },
+{ label:“El dinero es una herramienta — ni buena ni mala”,      value:“mb_tool”    },
+{ label:“El dinero cambia a las personas, para mal”,            value:“mb_fear”    },
+{ label:“El dinero es una bendición que hay que saber llevar”,  value:“mb_growth”  },
+{ label:“El dinero es para disfrutarlo, no para acumularlo”,    value:“mb_consume” },
+{ label:“El dinero trae más problemas que soluciones”,          value:“mb_guilt”   },
 ]
 },
 {
 id:“others_success”,
 q:“Cuando alguien de tu círculo logra una mejora económica grande, ¿qué es lo primero que piensas?”,
 opts:[
-{ label:“Me alegra — me inspira que es posible”,          value:“growth_inspire” },
-{ label:“Me alegra pero siento algo de envidia”,          value:“scarcity”       },
-{ label:“Pienso cómo lo logró para aprender”,             value:“growth_learn”   },
-{ label:“Me pregunto si será sostenible”,                 value:“doubt”          },
-{ label:“Depende mucho de la persona”,                    value:“neutral”        },
+{ label:“Me alegra — me inspira que es posible”,          value:“os_inspire”  },
+{ label:“Me alegra pero siento algo de envidia”,          value:“os_envy”     },
+{ label:“Pienso cómo lo logró para aprender”,             value:“os_learn”    },
+{ label:“Me pregunto si será sostenible”,                 value:“os_doubt”    },
+{ label:“Depende mucho de la persona”,                    value:“os_neutral”  },
 ]
 },
 {
 id:“family_money”,
 q:”¿Cómo describirías la relación con el dinero que viste en tu familia cuando crecías?”,
 opts:[
-{ label:“Era un tema de tensión y preocupación constante”,  value:“scarcity” },
-{ label:“Era normal — ni mucho ni poco, se vivía bien”,     value:“neutral”  },
-{ label:“Era algo de lo que no se hablaba”,                 value:“avoid”    },
-{ label:“Era un tema de fe — Dios proveerá”,               value:“faith”    },
-{ label:“Era algo que había que trabajar duro para tener”,  value:“growth”   },
+{ label:“Era un tema de tensión y preocupación constante”,  value:“fm_scarcity” },
+{ label:“Era normal — ni mucho ni poco, se vivía bien”,     value:“fm_neutral”  },
+{ label:“Era algo de lo que no se hablaba”,                 value:“fm_avoid”    },
+{ label:“Era un tema de fe — Dios proveerá”,               value:“fm_faith”    },
+{ label:“Era algo que había que trabajar duro para tener”,  value:“fm_growth”   },
 ]
 },
 {
 id:“money_purpose”,
 q:”¿Cuál de estas frases describe mejor para qué quieres prosperar?”,
 opts:[
-{ label:“Para no preocuparme más por el dinero”,              value:“security”    },
-{ label:“Para poder dar y ayudar a otros”,                    value:“steward”     },
-{ label:“Para disfrutar la vida que me merezco”,              value:“consume”     },
-{ label:“Para dejarle algo importante a mi familia”,          value:“legacy”      },
-{ label:“Para tener libertad de hacer lo que Dios me llame”, value:“purpose”     },
-{ label:“Todavía no tengo muy claro para qué”,               value:“unclear”     },
+{ label:“Para no preocuparme más por el dinero”,              value:“mp_security” },
+{ label:“Para poder dar y ayudar a otros”,                    value:“mp_steward”  },
+{ label:“Para disfrutar la vida que me merezco”,              value:“mp_consume”  },
+{ label:“Para dejarle algo importante a mi familia”,          value:“mp_legacy”   },
+{ label:“Para tener libertad de hacer lo que Dios me llame”, value:“mp_purpose”  },
+{ label:“Todavía no tengo muy claro para qué”,               value:“mp_unclear”  },
 ]
 },
 {
 id:“self_admin”,
 q:“Si tuvieras que describirte como administrador de lo que tienes ahora, ¿qué dirías?”,
 opts:[
-{ label:“Soy bastante ordenado con mis recursos”,              value:“good”    },
-{ label:“Me falta más disciplina de la que tengo”,             value:“growing” },
-{ label:“No tengo suficiente como para administrar”,           value:“level1”  },
-{ label:“Sé que puedo mejorar pero no sé por dónde empezar”,  value:“lost”    },
-{ label:“Prefiero no pensarlo mucho”,                          value:“avoid”   },
+{ label:“Soy bastante ordenado con mis recursos”,              value:“sa_good”    },
+{ label:“Me falta más disciplina de la que tengo”,             value:“sa_growing” },
+{ label:“No tengo suficiente como para administrar”,           value:“sa_level1”  },
+{ label:“Sé que puedo mejorar pero no sé por dónde empezar”,  value:“sa_lost”    },
+{ label:“Prefiero no pensarlo mucho”,                          value:“sa_avoid”   },
 ]
 },
 {
 id:“mistakes”,
 q:“Cuando tomas una decisión financiera que después no fue la mejor, ¿qué piensas generalmente?”,
 opts:[
-{ label:“Fue mala suerte o las circunstancias”,          value:“external”        },
-{ label:“Debí haberlo pensado mejor — aprendo y sigo”,   value:“growth_learn”    },
-{ label:“Me cuesta mucho soltar ese tipo de errores”,    value:“stuck”           },
-{ label:“Trato de no darle muchas vueltas”,              value:“avoid”           },
-{ label:“Lo analizo para no repetirlo”,                  value:“growth_analyze”  },
+{ label:“Fue mala suerte o las circunstancias”,          value:“mk_external” },
+{ label:“Debí haberlo pensado mejor — aprendo y sigo”,   value:“mk_learn”    },
+{ label:“Me cuesta mucho soltar ese tipo de errores”,    value:“mk_stuck”    },
+{ label:“Trato de no darle muchas vueltas”,              value:“mk_avoid”    },
+{ label:“Lo analizo para no repetirlo”,                  value:“mk_analyze”  },
 ]
 },
 {
 id:“ask_help”,
 q:”¿Qué tan fácil te resulta pedir ayuda o consejo cuando algo no te está funcionando?”,
 opts:[
-{ label:“Lo hago naturalmente — no me cuesta”,                  value:“open”    },
-{ label:“Lo hago pero me cuesta un poco”,                       value:“growing” },
-{ label:“Prefiero resolverlo solo antes de pedir ayuda”,        value:“pride”   },
-{ label:“Casi nunca pido ayuda — me cuesta mucho”,             value:“closed”  },
-{ label:“No tengo a quién pedirle realmente”,                   value:“alone”   },
+{ label:“Lo hago naturalmente — no me cuesta”,                  value:“ah_open”    },
+{ label:“Lo hago pero me cuesta un poco”,                       value:“ah_growing” },
+{ label:“Prefiero resolverlo solo antes de pedir ayuda”,        value:“ah_pride”   },
+{ label:“Casi nunca pido ayuda — me cuesta mucho”,             value:“ah_closed”  },
+{ label:“No tengo a quién pedirle realmente”,                   value:“ah_alone”   },
 ]
 },
 ];
@@ -413,8 +413,18 @@ const today = new Date().toISOString().split(“T”)[0]; // “2026-03-20”
 const parts = today.split(”-”);
 return parseInt(parts[0]) * 365 + parseInt(parts[1]) * 31 + parseInt(parts[2]);
 };
-const lsGet      = (key, fb) => { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fb; } catch { return fb; } };
-const lsSet      = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} };
+const lsGet      = (key, fb) => {
+try {
+let v = localStorage.getItem(key);
+if (v === null || v === undefined) v = sessionStorage.getItem(key);
+return v ? JSON.parse(v) : fb;
+} catch { return fb; }
+};
+const lsSet      = (key, val) => {
+const str = JSON.stringify(val);
+try { localStorage.setItem(key, str); } catch {}
+try { sessionStorage.setItem(key, str); } catch {}
+};
 
 // Detect level from onboarding answers
 const detectLevel = (situation, mindset, goalText) => {
@@ -432,7 +442,8 @@ if (situation.mentor === “active”)     score += 2;
 if (situation.mentor === “informal”)   score += 1;
 if (situation.community === “active”)  score += 1;
 const mindsetScore = Object.values(mindset).filter(v =>
-[“growth”,“growth_inspire”,“growth_learn”,“growth_analyze”,“steward”,“purpose”,“legacy”].includes(v)
+[“mf_growth”,“mb_growth”,“fm_growth”,“os_inspire”,“os_learn”,
+“mp_steward”,“mp_legacy”,“mp_purpose”,“mk_learn”,“mk_analyze”].includes(v)
 ).length;
 score += mindsetScore;
 if (score >= 16) return 3;
@@ -660,10 +671,10 @@ return (
 
 ```
   <div className="reveal d2" style={{ display:"flex", flexDirection:"column", gap:10, flex:1 }}>
-    {current.opts.map(opt => {
+    {current.opts.map((opt, oi) => {
       const sel = answers[current.id] === opt.value;
       return (
-        <button key={opt.value} onClick={() => choose(opt.value)} style={{ padding:"14px 16px", background: sel ? C.amberLight : C.surface, border:`1.5px solid ${sel ? C.amber : C.stroke}`, borderRadius:12, color: sel ? C.amber : C.inkMid, fontSize:13, fontFamily: sel ? D : B, fontWeight: sel ? 700 : 400, cursor:"pointer", textAlign:"left", transition:"all 0.2s" }}>
+        <button key={`${current.id}-${oi}`} onClick={() => choose(opt.value)} style={{ padding:"14px 16px", background: sel ? C.amberLight : C.surface, border:`1.5px solid ${sel ? C.amber : C.stroke}`, borderRadius:12, color: sel ? C.amber : C.inkMid, fontSize:13, fontFamily: sel ? D : B, fontWeight: sel ? 700 : 400, cursor:"pointer", textAlign:"left", transition:"all 0.2s" }}>
           {opt.label}
         </button>
       );
@@ -708,10 +719,10 @@ return (
 
 ```
   <div className="reveal d2" style={{ display:"flex", flexDirection:"column", gap:10, flex:1 }}>
-    {current.opts.map(opt => {
+    {current.opts.map((opt, oi) => {
       const sel = answers[current.id] === opt.value;
       return (
-        <button key={opt.value} onClick={() => choose(opt.value)} style={{ padding:"13px 16px", background: sel ? C.primaryLight : C.surface, border:`1.5px solid ${sel ? C.primary : C.stroke}`, borderRadius:12, color: sel ? C.primary : C.inkMid, fontSize:13, fontFamily: sel ? D : B, fontWeight: sel ? 700 : 400, cursor:"pointer", textAlign:"left", transition:"all 0.2s" }}>
+        <button key={`${current.id}-${oi}`} onClick={() => choose(opt.value)} style={{ padding:"13px 16px", background: sel ? C.primaryLight : C.surface, border:`1.5px solid ${sel ? C.primary : C.stroke}`, borderRadius:12, color: sel ? C.primary : C.inkMid, fontSize:13, fontFamily: sel ? D : B, fontWeight: sel ? 700 : 400, cursor:"pointer", textAlign:"left", transition:"all 0.2s" }}>
           <div>{opt.label}</div>
           {opt.desc && <div style={{ fontSize:11, color: sel ? C.primaryMid : C.inkFaint, marginTop:2 }}>{opt.desc}</div>}
         </button>
@@ -1203,19 +1214,27 @@ const [loaded, setLoaded]     = useState(false);
 
 // Load — check onboarding on mount
 useEffect(() => {
-const ob      = lsGet(“v2_onboarded”, false);
-const profile = lsGet(“v2_profile”, {});
-setCheckins(lsGet(“v2_checkins”, {}));
-setTithes(lsGet(“v2_tithes”, []));
-setProfile(profile);
+const ob          = lsGet(“v2_onboarded”, false);
+const savedProfile = lsGet(“v2_profile”, {});
+const savedCheckins = lsGet(“v2_checkins”, {});
+const savedTithes  = lsGet(“v2_tithes”, []);
+
+```
+setCheckins(savedCheckins);
+setTithes(savedTithes);
+setProfile(savedProfile);
 setLoaded(true);
-// Only go to app if BOTH onboarded flag AND profile with level exist
-if (ob && profile && profile.level) {
-setObStage(“app”);
-} else {
-// Clear any partial state to avoid inconsistencies
-setObStage(“welcome0”);
-}
+
+// Go to app ONLY if onboarded flag is true AND profile has all required fields
+const profileComplete = ob === true &&
+  savedProfile &&
+  savedProfile.level &&
+  savedProfile.goal &&
+  savedProfile.situation;
+
+setObStage(profileComplete ? "app" : "welcome0");
+```
+
 }, []);
 
 // Persist checkins
@@ -1224,12 +1243,19 @@ useEffect(() => { if (loaded) lsSet(“v2_tithes”, tithes); }, [tithes, loaded
 
 const finishOnboarding = (sit) => {
 const level = detectLevel(sit, mindset || {}, goalData?.goal || “”);
-const newProfile = { level, goal: goalData, mindset, situation: sit, bibleVersion: sit.bible_version || “es-RVR1960” };
-setProfile(newProfile);
-lsSet(“v2_profile”, newProfile);
+const newProfile = {
+level,
+goal:      goalData,
+mindset:   mindset || {},
+situation: sit,
+bibleVersion: sit.bible_version || “es-RVR1960”
+};
+// Save everything before changing stage
+lsSet(“v2_profile”,   newProfile);
 lsSet(“v2_onboarded”, true);
-setObStage(“result”);
+setProfile(newProfile);
 setSituation(sit);
+setObStage(“result”);
 };
 
 const TABS = [
